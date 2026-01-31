@@ -25,7 +25,7 @@ export function Nav() {
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
                 <i className="fa-solid fa-money-bill-trend-up text-white text-sm"></i>
               </div>
-              <span className="text-lg font-bold text-white">MoneyDash</span>
+              <span className="text-lg font-bold text-white">MDASH</span>
             </Link>
 
             {/* Nav Items */}

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MoneyDash | Portfolio Tracker",
+  title: "MDASH",
   description: "Track your portfolio across Hyperliquid, Polymarket & Football.fun",
 };
 
