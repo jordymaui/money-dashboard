@@ -34,10 +34,14 @@ function formatCompactCurrency(value: number): string {
   if (value >= 1000000) {
     return `$${(value / 1000000).toFixed(1)}M`
   }
-  if (value >= 1000) {
+  if (value >= 100000) {
     return `$${(value / 1000).toFixed(0)}K`
   }
-  return `$${value.toFixed(0)}`
+  if (value >= 10000) {
+    return `$${(value / 1000).toFixed(1)}K`
+  }
+  // For values under 10K, show actual value
+  return `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
 }
 
 // Custom tooltip component with proper value display
@@ -127,12 +131,26 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
       }
 
       if (data && data.length > 0) {
-        // Transform data for chart
+        // Transform data for chart with time-period-aware labels
         const transformed: ChartDataPoint[] = data.map(snapshot => {
           const date = new Date(snapshot.timestamp)
           
+          // Format X-axis label based on time period
+          let dateLabel: string
+          if (timePeriod === '1D') {
+            // For 1 day, show time only (HH:MM)
+            dateLabel = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+          } else if (timePeriod === '1W') {
+            // For 1 week, show day + time (Mon 14:30)
+            dateLabel = date.toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + 
+                        date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+          } else {
+            // For 1M and ALL, show date (Jan 31)
+            dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          }
+          
           return {
-            date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            date: dateLabel,
             timestamp: date.getTime(),
             value: snapshot.account_value,
             formattedDate: date.toLocaleDateString('en-US', {
