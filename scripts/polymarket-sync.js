@@ -12,7 +12,7 @@ const WALLET = '0xDa50B2Ca697Ee1A325d3c6f965B69Eb9EC632A41';
 
 const API_BASE = 'https://data-api.polymarket.com';
 const POSITIONS_URL = `${API_BASE}/positions?user=${WALLET}`;
-const CLOSED_POSITIONS_URL = `${API_BASE}/closed-positions?user=${WALLET}`;
+const CLOSED_POSITIONS_URL = `${API_BASE}/closed-positions?user=${WALLET}&limit=100`;
 const TRADES_URL = `${API_BASE}/trades?user=${WALLET}`;
 const ACTIVITY_URL = `${API_BASE}/activity?user=${WALLET}`;
 
