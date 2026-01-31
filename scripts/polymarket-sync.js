@@ -139,19 +139,45 @@ function transformActivity(activity) {
 
 // Sync functions
 async function syncPositions(positions) {
-  if (positions.length === 0) return 0;
+  // Get all existing positions from database
+  const existing = await supabaseRequest(
+    '/rest/v1/polymarket_positions?select=id,asset',
+    'GET'
+  );
+  const existingAssets = new Set((existing || []).map(p => p.asset));
+  const apiAssets = new Set(positions.map(p => p.asset));
+  
+  // Find positions in DB that are NOT in API (stale/closed)
+  const staleAssets = [...existingAssets].filter(asset => !apiAssets.has(asset));
+  
+  // Delete stale positions (they're fully closed/settled)
+  if (staleAssets.length > 0) {
+    console.log(`  Removing ${staleAssets.length} stale positions...`);
+    for (const asset of staleAssets) {
+      try {
+        await supabaseRequest(
+          `/rest/v1/polymarket_positions?asset=eq.${encodeURIComponent(asset)}`,
+          'DELETE'
+        );
+      } catch (err) {
+        console.error(`  Error deleting stale position:`, err.message);
+      }
+    }
+  }
+  
+  if (positions.length === 0) return { upserted: 0, deleted: staleAssets.length };
 
   const transformed = positions.map(transformPosition);
   let upserted = 0;
   
   for (const pos of transformed) {
     try {
-      const existing = await supabaseRequest(
+      const posExists = await supabaseRequest(
         `/rest/v1/polymarket_positions?asset=eq.${encodeURIComponent(pos.asset)}&select=id`,
         'GET'
       );
       
-      if (existing && existing.length > 0) {
+      if (posExists && posExists.length > 0) {
         await supabaseRequest(
           `/rest/v1/polymarket_positions?asset=eq.${encodeURIComponent(pos.asset)}`,
           'PATCH',
@@ -166,7 +192,7 @@ async function syncPositions(positions) {
     }
   }
   
-  return upserted;
+  return { upserted, deleted: staleAssets.length };
 }
 
 async function syncClosedPositions(positions) {
@@ -237,18 +263,24 @@ async function syncActivity(activities) {
   const existingHashes = new Set((existing || []).map(t => t.transaction_hash));
   
   const newActivities = activities
-    .filter(a => !existingHashes.has(a.transactionHash))
+    .filter(a => a.transactionHash && !existingHashes.has(a.transactionHash))
     .map(transformActivity);
   
   if (newActivities.length === 0) return 0;
   
-  const BATCH_SIZE = 100;
   let inserted = 0;
   
-  for (let i = 0; i < newActivities.length; i += BATCH_SIZE) {
-    const batch = newActivities.slice(i, i + BATCH_SIZE);
-    await supabaseRequest('/rest/v1/polymarket_activity', 'POST', batch);
-    inserted += batch.length;
+  // Insert one at a time to handle any remaining duplicates gracefully
+  for (const activity of newActivities) {
+    try {
+      await supabaseRequest('/rest/v1/polymarket_activity', 'POST', activity);
+      inserted++;
+    } catch (err) {
+      // Ignore duplicate key errors
+      if (!err.message.includes('duplicate key')) {
+        console.error(`  Error inserting activity:`, err.message);
+      }
+    }
   }
   
   return inserted;
@@ -286,8 +318,8 @@ async function main() {
     // Sync to Supabase
     console.log('\n--- Syncing to Supabase ---');
     
-    const positionsUpserted = await syncPositions(positions);
-    console.log(`✓ Positions: ${positionsUpserted} upserted`);
+    const positionsResult = await syncPositions(positions);
+    console.log(`✓ Positions: ${positionsResult.upserted} upserted, ${positionsResult.deleted} stale removed`);
     
     const closedUpserted = await syncClosedPositions(closedPositions);
     console.log(`✓ Closed positions: ${closedUpserted} upserted`);
