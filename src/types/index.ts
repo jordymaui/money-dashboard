@@ -41,3 +41,45 @@ export interface ChartDataPoint {
 export type TimeRange = '24H' | '1W' | '1M' | 'All'
 export type ChartType = 'Combined' | 'Perp Only' | 'PnL' | 'Account Value' | 'Show Trades'
 export type AccentColor = 'green' | 'blue' | 'white'
+
+// Polymarket types
+export interface PolymarketPosition {
+  id: number
+  asset: string
+  condition_id: string | null
+  title: string | null
+  slug: string | null
+  outcome: string | null
+  size: number
+  avg_price: number
+  initial_value: number
+  current_value: number
+  cash_pnl: number
+  percent_pnl: number
+  cur_price: number
+  redeemable: boolean
+  icon: string | null
+  end_date: string | null
+  event_slug: string | null
+  event_id: string | null
+  raw_data: Record<string, unknown> | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PolymarketTrade {
+  id: number
+  asset: string
+  side: string | null
+  title: string | null
+  slug: string | null
+  outcome: string | null
+  size: number
+  price: number
+  timestamp: number
+  transaction_hash: string
+  event_slug: string | null
+  condition_id: string | null
+  raw_data: Record<string, unknown> | null
+  created_at: string
+}
