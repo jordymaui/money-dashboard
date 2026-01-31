@@ -176,19 +176,19 @@ export default function Home() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-4 md:py-8">
       {/* Hero Section with Refresh Timer */}
-      <div className="mb-8 flex items-start justify-between">
+      <div className="mb-4 md:mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold text-white mb-2">
-            <i className="fa-solid fa-chart-pie mr-3 text-emerald-400"></i>
-            Portfolio Overview
+          <h1 className="text-2xl md:text-4xl font-bold text-white mb-1 md:mb-2">
+            <i className="fa-solid fa-chart-pie mr-2 md:mr-3 text-emerald-400 hidden md:inline"></i>
+            Portfolio
           </h1>
-          <p className="text-zinc-400">Track all your positions across platforms</p>
+          <p className="text-zinc-400 text-sm md:text-base hidden md:block">Track all your positions across platforms</p>
         </div>
         
         {/* Refresh Timer */}
-        <div className="flex items-center gap-2 bg-zinc-800/50 rounded-lg px-3 py-2 border border-zinc-700/50">
+        <div className="flex items-center gap-2 bg-zinc-800/50 rounded-lg px-2 md:px-3 py-1.5 md:py-2 border border-zinc-700/50">
           <div className="relative w-5 h-5">
             <svg className="w-5 h-5 -rotate-90" viewBox="0 0 20 20">
               <circle
@@ -211,41 +211,41 @@ export default function Home() {
               />
             </svg>
           </div>
-          <span className="text-zinc-400 text-sm font-mono">{countdown}s</span>
+          <span className="text-zinc-400 text-xs md:text-sm font-mono">{countdown}s</span>
         </div>
       </div>
 
       {/* Total Value Card */}
-      <div className="bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 rounded-2xl border border-zinc-700/50 p-6 mb-8">
+      <div className="bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 rounded-xl md:rounded-2xl border border-zinc-700/50 p-4 md:p-6 mb-4 md:mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-zinc-400 text-sm mb-1">
-              <i className="fa-solid fa-sack-dollar mr-2"></i>
-              Total Portfolio Value
+            <p className="text-zinc-400 text-xs md:text-sm mb-1">
+              <i className="fa-solid fa-sack-dollar mr-1 md:mr-2"></i>
+              Total Value
             </p>
-            <p className="text-4xl font-bold font-mono text-white">
+            <p className="text-2xl md:text-4xl font-bold font-mono text-white">
               ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <div className="flex items-center gap-4 mt-2">
+            <div className="flex items-center gap-2 md:gap-4 mt-1 md:mt-2">
               <span className={cn(
-                'flex items-center gap-1 text-sm font-mono',
+                'flex items-center gap-1 text-xs md:text-sm font-mono',
                 totalUnrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
               )}>
                 <i className={cn(
-                  'fa-solid',
+                  'fa-solid text-[10px] md:text-xs',
                   totalUnrealizedPnl >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'
                 )}></i>
                 {totalUnrealizedPnl >= 0 ? '+' : ''}${totalUnrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
-              <span className="text-zinc-500 text-sm">Unrealized PnL</span>
+              <span className="text-zinc-500 text-xs md:text-sm hidden md:inline">Unrealized PnL</span>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-zinc-500 text-sm">
+            <p className="text-zinc-500 text-xs md:text-sm hidden md:block">
               <i className="fa-solid fa-plug mr-2"></i>
-              Active Platforms
+              Active
             </p>
-            <p className="text-2xl font-bold text-white">{activePlatforms} / 3</p>
+            <p className="text-xl md:text-2xl font-bold text-white">{activePlatforms}<span className="text-zinc-500">/3</span></p>
           </div>
         </div>
       </div>
@@ -370,8 +370,8 @@ export default function Home() {
         })}
       </div>
 
-      {/* Quick Stats */}
-      <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Quick Stats - Hidden on mobile for cleaner look */}
+      <div className="mt-6 md:mt-8 hidden md:grid grid-cols-4 gap-4">
         <div className="bg-zinc-900/50 rounded-lg border border-zinc-800/50 p-4">
           <p className="text-zinc-500 text-xs mb-1">
             <i className="fa-solid fa-boxes-stacked mr-1"></i>

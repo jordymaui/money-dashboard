@@ -124,3 +124,43 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Safe area insets for notched devices */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* Mobile app-like behavior */
+@media (max-width: 767px) {
+  /* Prevent overscroll bounce */
+  html {
+    overscroll-behavior: none;
+  }
+  
+  /* Smooth scrolling */
+  html, body {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Prevent text selection on nav elements */
+  nav {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  /* Prevent pull-to-refresh */
+  body {
+    overscroll-behavior-y: contain;
+  }
+}
+
+/* PWA standalone mode optimizations */
+@media (display-mode: standalone) {
+  body {
+    /* Extra padding when running as installed PWA */
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}

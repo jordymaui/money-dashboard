@@ -15,7 +15,7 @@ export function Nav() {
   const pathname = usePathname()
 
   return (
-    <nav className="border-b border-zinc-800/50 bg-zinc-950">
+    <nav className="border-b border-zinc-800/50 bg-zinc-950 hidden md:block">
       <div className="container mx-auto px-4">
         <div className="flex h-14 items-center justify-between">
           {/* Left side - Logo and Nav */}
