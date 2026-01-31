@@ -46,7 +46,6 @@ export function Nav() {
                   >
                     <i className={cn('fa-solid', item.icon, 'w-4 text-center')}></i>
                     {item.label}
-                    {item.href !== '/' && <i className="fa-solid fa-chevron-down text-[10px] opacity-50"></i>}
                   </Link>
                 )
               })}
