@@ -40,13 +40,20 @@ function formatCompactCurrency(value: number): string {
   return `$${value.toFixed(0)}`
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
+// Custom tooltip component with proper value display
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length > 0) {
+    const dataPoint = payload[0]?.payload
+    if (!dataPoint) return null
+    
     return (
-      <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 shadow-xl">
-        <p className="text-zinc-400 text-xs mb-1">{payload[0]?.payload?.formattedDate}</p>
-        <p className="text-white font-mono font-medium">
-          {formatCurrency(payload[0].value)}
+      <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 shadow-xl">
+        <p className="text-zinc-400 text-xs mb-1.5">
+          <i className="fa-solid fa-calendar mr-1.5"></i>
+          {dataPoint.formattedDate}
+        </p>
+        <p className="text-white font-mono font-bold text-lg">
+          {formatCurrency(dataPoint.value)}
         </p>
       </div>
     )
@@ -61,6 +68,7 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
   const [currentValue, setCurrentValue] = useState(0)
   const [periodChange, setPeriodChange] = useState(0)
   const [periodChangePercent, setPeriodChangePercent] = useState(0)
+  const [periodStartValue, setPeriodStartValue] = useState(0)
 
   const colorMap = {
     green: {
@@ -122,21 +130,13 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
         // Transform data for chart
         const transformed: ChartDataPoint[] = data.map(snapshot => {
           const date = new Date(snapshot.timestamp)
-          let dateFormat: Intl.DateTimeFormatOptions
-          
-          if (timePeriod === '1D') {
-            dateFormat = { hour: 'numeric', minute: '2-digit' }
-          } else if (timePeriod === '1W') {
-            dateFormat = { weekday: 'short', hour: 'numeric' }
-          } else {
-            dateFormat = { month: 'short', day: 'numeric' }
-          }
           
           return {
             date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
             timestamp: date.getTime(),
             value: snapshot.account_value,
             formattedDate: date.toLocaleDateString('en-US', {
+              weekday: 'short',
               month: 'short',
               day: 'numeric',
               year: 'numeric',
@@ -148,15 +148,22 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
 
         setChartData(transformed)
         
-        // Calculate stats
-        const latestValue = data[data.length - 1].account_value
+        // Calculate period stats - first value vs last value in the period
         const firstValue = data[0].account_value
+        const latestValue = data[data.length - 1].account_value
         const change = latestValue - firstValue
         const changePercent = firstValue > 0 ? (change / firstValue) * 100 : 0
         
         setCurrentValue(latestValue)
+        setPeriodStartValue(firstValue)
         setPeriodChange(change)
         setPeriodChangePercent(changePercent)
+      } else {
+        setChartData([])
+        setCurrentValue(0)
+        setPeriodStartValue(0)
+        setPeriodChange(0)
+        setPeriodChangePercent(0)
       }
     } catch (err) {
       console.error('Error:', err)
@@ -170,6 +177,16 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
   }, [fetchData])
 
   const isProfitable = periodChange >= 0
+
+  // Get period label for display
+  const getPeriodLabel = () => {
+    switch (timePeriod) {
+      case '1D': return '24h'
+      case '1W': return '7d'
+      case '1M': return '30d'
+      case 'ALL': return 'All time'
+    }
+  }
 
   return (
     <div className="flex-1 bg-zinc-900/30 rounded-lg border border-zinc-800/50">
@@ -193,26 +210,47 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
           ))}
         </div>
 
-        {/* Stats Display */}
-        <div className="flex items-center gap-4">
+        {/* Stats Display - Updates based on time period */}
+        <div className="flex items-center gap-6">
           <div className="text-right">
-            <div className="text-xs text-zinc-500">Account Value</div>
-            <div className="text-lg font-bold text-white font-mono">
+            <div className="text-xs text-zinc-500">
+              <i className="fa-solid fa-wallet mr-1"></i>
+              Account Value
+            </div>
+            <div className="text-xl font-bold text-white font-mono">
               {formatCurrency(currentValue)}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-xs text-zinc-500">{timePeriod} Change</div>
+            <div className="text-xs text-zinc-500">
+              <i className="fa-solid fa-chart-line mr-1"></i>
+              {getPeriodLabel()} Change
+            </div>
             <div className={cn(
-              'text-lg font-bold font-mono',
+              'text-xl font-bold font-mono flex items-center justify-end gap-1',
               isProfitable ? 'text-emerald-400' : 'text-red-400'
             )}>
+              <i className={cn('fa-solid text-sm', isProfitable ? 'fa-caret-up' : 'fa-caret-down')}></i>
               {isProfitable ? '+' : ''}{formatCurrency(periodChange)}
-              <span className="text-sm ml-1">
-                ({isProfitable ? '+' : ''}{periodChangePercent.toFixed(2)}%)
-              </span>
+            </div>
+            <div className={cn(
+              'text-sm font-mono',
+              isProfitable ? 'text-emerald-400/70' : 'text-red-400/70'
+            )}>
+              ({isProfitable ? '+' : ''}{periodChangePercent.toFixed(2)}%)
             </div>
           </div>
+          {periodStartValue > 0 && (
+            <div className="text-right border-l border-zinc-700 pl-6">
+              <div className="text-xs text-zinc-500">
+                <i className="fa-solid fa-flag mr-1"></i>
+                Period Start
+              </div>
+              <div className="text-lg font-mono text-zinc-400">
+                {formatCurrency(periodStartValue)}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -221,7 +259,10 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
         <div className="h-[300px]">
           {loading ? (
             <div className="h-full flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mx-auto mb-2"></div>
+                <div className="text-zinc-500 text-sm">Loading chart data...</div>
+              </div>
             </div>
           ) : chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
@@ -259,7 +300,10 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
                   domain={['dataMin - 100', 'dataMax + 100']}
                   width={60}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip 
+                  content={<CustomTooltip />}
+                  cursor={{ stroke: '#52525b', strokeDasharray: '5 5' }}
+                />
                 <Area 
                   type="monotone" 
                   dataKey="value" 
@@ -275,6 +319,7 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
             <div className="h-full flex flex-col items-center justify-center text-zinc-500">
               <i className="fa-solid fa-chart-area text-4xl mb-3 opacity-30"></i>
               <span>No data available for this period</span>
+              <span className="text-xs text-zinc-600 mt-1">Try selecting a different time range</span>
             </div>
           )}
         </div>

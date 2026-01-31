@@ -10,6 +10,7 @@ interface TopStatsBarProps {
   totalPositionSize: number
   perpEquity?: number
   spotValue?: number
+  countdown?: number
   accentColor?: AccentColor
 }
 
@@ -24,6 +25,7 @@ export function TopStatsBar({
   totalPositionSize,
   perpEquity,
   spotValue = 0,
+  countdown,
   accentColor = 'green'
 }: TopStatsBarProps) {
   const accentClasses = {
@@ -70,7 +72,9 @@ export function TopStatsBar({
               <i className="fa-solid fa-money-bill-transfer mr-1.5"></i>
               Withdrawable
             </span>
-            <span className="text-zinc-600 text-xs">0.00%</span>
+            <span className="text-zinc-600 text-xs">
+              {totalValue > 0 ? ((withdrawable / totalValue) * 100).toFixed(1) : '0.0'}%
+            </span>
           </div>
           <div className="text-xl font-bold font-mono text-white">
             {formatCurrency(withdrawable)}
@@ -101,16 +105,22 @@ export function TopStatsBar({
         )}
       </div>
 
-      {/* Right side info */}
-      <div className="text-right text-xs text-zinc-500">
-        <div>
-          <i className="fa-solid fa-rotate mr-1"></i>
-          Next refresh in 7s
-        </div>
-        <div className="text-zinc-600 mt-1">
-          <i className="fa-solid fa-heart mr-1"></i>
-          Support us
-        </div>
+      {/* Right side - Countdown */}
+      <div className="text-right text-xs">
+        {countdown !== undefined && (
+          <div className={cn(
+            'flex items-center gap-2 px-3 py-1.5 rounded-lg',
+            countdown <= 5 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-800/50 text-zinc-400'
+          )}>
+            <i className={cn(
+              'fa-solid',
+              countdown <= 5 ? 'fa-spinner fa-spin' : 'fa-rotate'
+            )}></i>
+            <span>
+              Next refresh in <span className="font-mono font-bold text-white">{countdown}s</span>
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )

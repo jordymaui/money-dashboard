@@ -1,60 +1,83 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { HyperliquidHeader } from '@/components/hyperliquid-header'
-import { HyperliquidSnapshot, HyperliquidPosition } from '@/types'
 import { HyperliquidDashboard } from '@/components/hyperliquid-dashboard'
+import { fetchHyperliquidState, fetchHyperliquidFills, fetchAllMids, transformPositions, HyperliquidFill } from '@/lib/hyperliquid'
+import { HyperliquidPosition } from '@/types'
 
-async function getLatestPositions() {
-  // Get the latest snapshot id first
-  const { data: latestSnapshot } = await supabase
-    .from('hyperliquid_snapshots')
-    .select('id')
-    .order('timestamp', { ascending: false })
-    .limit(1)
-    .single()
+const REFRESH_INTERVAL = 60 // seconds
 
-  if (!latestSnapshot) return []
+export default function HyperliquidPage() {
+  const [positions, setPositions] = useState<HyperliquidPosition[]>([])
+  const [fills, setFills] = useState<HyperliquidFill[]>([])
+  const [accountValue, setAccountValue] = useState(0)
+  const [unrealizedPnl, setUnrealizedPnl] = useState(0)
+  const [withdrawable, setWithdrawable] = useState(0)
+  const [marginUsed, setMarginUsed] = useState(0)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
+  const [loading, setLoading] = useState(true)
 
-  const { data, error } = await supabase
-    .from('hyperliquid_positions')
-    .select('*')
-    .eq('snapshot_id', latestSnapshot.id)
+  const fetchData = useCallback(async () => {
+    try {
+      // Fetch live data from Hyperliquid API
+      const [state, mids, fillsData] = await Promise.all([
+        fetchHyperliquidState(),
+        fetchAllMids(),
+        fetchHyperliquidFills()
+      ])
 
-  if (error) {
-    console.error('Error fetching positions:', error)
-    return []
-  }
-  return data as HyperliquidPosition[]
-}
+      if (state) {
+        // Set account stats from live API
+        setAccountValue(parseFloat(state.marginSummary.accountValue))
+        setWithdrawable(parseFloat(state.marginSummary.withdrawable))
+        setMarginUsed(parseFloat(state.marginSummary.totalMarginUsed))
+        
+        // Transform positions
+        const transformedPositions = transformPositions(state, mids)
+        setPositions(transformedPositions)
+        
+        // Calculate unrealized PnL from positions
+        const totalUnrealizedPnl = transformedPositions.reduce((sum, p) => sum + p.unrealized_pnl, 0)
+        setUnrealizedPnl(totalUnrealizedPnl)
+      }
 
-async function getLatestSnapshot() {
-  const { data, error } = await supabase
-    .from('hyperliquid_snapshots')
-    .select('*')
-    .order('timestamp', { ascending: false })
-    .limit(1)
-    .single()
+      // Set fills/trades
+      setFills(fillsData)
+      
+      setLastUpdated(new Date())
+      setCountdown(REFRESH_INTERVAL)
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  if (error) {
-    console.error('Error fetching latest snapshot:', error)
-    return null
-  }
-  return data as HyperliquidSnapshot
-}
+  // Initial data fetch
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
-export const revalidate = 60 // Revalidate every 60 seconds
+  // Countdown timer - ticks every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          // Trigger refresh when countdown hits 0
+          fetchData()
+          return REFRESH_INTERVAL
+        }
+        return prev - 1
+      })
+    }, 1000)
 
-export default async function HyperliquidPage() {
-  const [positions, latestSnapshot] = await Promise.all([
-    getLatestPositions(),
-    getLatestSnapshot()
-  ])
+    return () => clearInterval(timer)
+  }, [fetchData])
 
-  // Calculate stats
-  const accountValue = latestSnapshot?.account_value ?? 0
-  const unrealizedPnl = latestSnapshot?.unrealized_pnl ?? 0
-  const withdrawable = latestSnapshot?.withdrawable ?? accountValue * 0.8
-  
-  // Calculate from positions
+  // Calculate stats from positions
   const longPositions = positions.filter(p => p.size > 0)
   const shortPositions = positions.filter(p => p.size < 0)
   
@@ -62,14 +85,22 @@ export default async function HyperliquidPage() {
   const shortExposure = shortPositions.reduce((sum, p) => sum + Math.abs(p.size * (p.current_price || p.entry_price)), 0)
   const totalPositionSize = longExposure + shortExposure
   
-  // Calculate margin used and leverage
-  const marginUsed = positions.reduce((sum, pos) => {
-    const positionValue = Math.abs(pos.size * pos.entry_price)
-    return sum + (positionValue / pos.leverage)
-  }, 0)
-  
+  // Calculate margin usage percentage
   const marginUsagePercent = accountValue > 0 ? (marginUsed / accountValue) * 100 : 0
   const effectiveLeverage = accountValue > 0 ? totalPositionSize / accountValue : 0
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+            <div className="text-zinc-400">Loading Hyperliquid data...</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -86,12 +117,18 @@ export default async function HyperliquidPage() {
         longExposure={longExposure}
         shortExposure={shortExposure}
         positions={positions}
+        fills={fills}
+        countdown={countdown}
       />
 
       {/* Data Info */}
       <div className="mt-4 text-xs text-zinc-600 text-right">
         <i className="fa-solid fa-clock-rotate-left mr-1"></i>
-        Last updated: {latestSnapshot ? new Date(latestSnapshot.timestamp).toLocaleString() : 'Never'}
+        Last updated: {lastUpdated ? lastUpdated.toLocaleString() : 'Never'}
+        <span className="ml-3 text-emerald-400/70">
+          <i className="fa-solid fa-circle-check mr-1"></i>
+          Live data from Hyperliquid API
+        </span>
       </div>
     </div>
   )

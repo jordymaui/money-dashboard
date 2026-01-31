@@ -5,6 +5,7 @@ import { SidebarPanel } from './dashboard/sidebar-panel'
 import { PositionsTable } from './dashboard/positions-table'
 import { HyperliquidChart } from './hyperliquid-chart'
 import { HyperliquidPosition, AccentColor } from '@/types'
+import { HyperliquidFill } from '@/lib/hyperliquid'
 
 interface HyperliquidDashboardProps {
   // Stats
@@ -20,8 +21,12 @@ interface HyperliquidDashboardProps {
   longExposure: number
   shortExposure: number
   
-  // Positions
+  // Positions and trades
   positions: HyperliquidPosition[]
+  fills?: HyperliquidFill[]
+  
+  // Refresh countdown
+  countdown?: number
   
   // Theming
   accentColor?: AccentColor
@@ -38,6 +43,8 @@ export function HyperliquidDashboard({
   longExposure,
   shortExposure,
   positions,
+  fills = [],
+  countdown,
   accentColor = 'green'
 }: HyperliquidDashboardProps) {
   return (
@@ -50,6 +57,7 @@ export function HyperliquidDashboard({
         totalPositionSize={totalPositionSize}
         perpEquity={perpEquity}
         spotValue={spotValue}
+        countdown={countdown}
         accentColor={accentColor}
       />
 
@@ -72,6 +80,7 @@ export function HyperliquidDashboard({
       {/* Positions Table */}
       <PositionsTable
         positions={positions}
+        fills={fills}
         accentColor={accentColor}
       />
     </div>
