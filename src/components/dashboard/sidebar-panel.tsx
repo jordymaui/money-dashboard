@@ -55,7 +55,7 @@ export function SidebarPanel({
   const positionPercent = Math.min((totalPositionValue / maxPositionValue) * 100, 100)
 
   return (
-    <div className="w-[280px] bg-zinc-900/50 rounded-lg border border-zinc-800/50 p-4 space-y-5">
+    <div className="w-full md:w-[280px] bg-zinc-900/50 rounded-lg border border-zinc-800/50 p-4 space-y-4 md:space-y-5">
       {/* Perp Equity */}
       <div>
         <h3 className="text-zinc-500 text-sm mb-1">

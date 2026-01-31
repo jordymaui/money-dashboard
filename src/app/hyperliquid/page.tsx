@@ -103,7 +103,7 @@ export default function HyperliquidPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container mx-auto px-3 md:px-4 py-3 md:py-6">
       {/* Sub-header with Advanced Stats Modal */}
       <HyperliquidHeader />
 

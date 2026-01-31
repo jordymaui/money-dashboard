@@ -61,9 +61,9 @@ export function HyperliquidDashboard({
         accentColor={accentColor}
       />
 
-      {/* Main Content Area */}
-      <div className="flex gap-4">
-        {/* Sidebar Panel */}
+      {/* Main Content Area - Vertical on mobile, horizontal on desktop */}
+      <div className="flex flex-col md:flex-row gap-4">
+        {/* Sidebar Panel - Full width on mobile */}
         <SidebarPanel
           perpEquity={perpEquity}
           marginUsage={marginUsage}
@@ -74,7 +74,7 @@ export function HyperliquidDashboard({
           accentColor={accentColor}
         />
 
-        {/* Interactive Chart */}
+        {/* Interactive Chart - Full width on mobile */}
         <HyperliquidChart accentColor={accentColor} />
       </div>
 

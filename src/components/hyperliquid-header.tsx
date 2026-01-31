@@ -8,7 +8,8 @@ export function HyperliquidHeader() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
+      {/* Desktop header - hidden on mobile */}
+      <div className="hidden md:flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <button className="flex items-center gap-2 px-4 py-2 bg-zinc-800/50 rounded-full text-sm text-zinc-300 hover:bg-zinc-800 transition-colors">
             <i className="fa-solid fa-arrow-left"></i> Back

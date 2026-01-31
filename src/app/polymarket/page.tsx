@@ -418,8 +418,8 @@ export default function PolymarketPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-6xl">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Header - Hidden on mobile (using MobileHeader) */}
+      <div className="hidden md:flex items-center justify-between mb-6">
         <Link 
           href="/"
           className="flex items-center gap-2 px-4 py-2 bg-zinc-800/50 rounded-full text-sm text-zinc-300 hover:bg-zinc-800 transition-colors"
@@ -465,27 +465,35 @@ export default function PolymarketPage() {
       </div>
 
       {/* Portfolio Summary Section */}
-      <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-6 mb-6">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Left Side - Portfolio Value */}
-          <div className="lg:w-1/3">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-zinc-400 text-sm">Portfolio</span>
-              <i className="fa-solid fa-external-link text-zinc-600 text-xs"></i>
+      <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-4 md:p-6 mb-4 md:mb-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-zinc-400 text-xs md:text-sm">Portfolio</span>
             </div>
             
-            <div className="text-5xl font-bold text-white mb-2 tracking-tight">
+            <div className="text-3xl md:text-5xl font-bold text-white mb-1 tracking-tight">
               {formatCurrency(totalPortfolioValue)}
             </div>
             
             <div className={cn(
-              'text-sm mb-6',
+              'text-xs md:text-sm',
               todayChange >= 0 ? 'text-green-400' : 'text-red-400'
             )}>
               {todayChange >= 0 ? '+' : ''}{formatCurrency(todayChange)} ({formatPercent(todayChangePercent)}) Today
             </div>
-            
+          </div>
+          
+          {/* Mobile refresh timer */}
+          <div className="md:hidden flex items-center gap-1.5 px-2 py-1 bg-zinc-800/50 rounded-lg text-xs">
+            <div className="relative w-4 h-4">
+              <svg className="w-4 h-4 -rotate-90" viewBox="0 0 20 20">
+                <circle cx="10" cy="10" r="8" fill="none" stroke="#3f3f46" strokeWidth="2"/>
+                <circle cx="10" cy="10" r="8" fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray={`${(countdown / REFRESH_INTERVAL) * 50.27} 50.27`} strokeLinecap="round"/>
+              </svg>
             </div>
+            <span className="text-zinc-400 font-mono">{countdown}s</span>
+          </div>
         </div>
       </div>
 

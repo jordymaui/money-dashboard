@@ -213,9 +213,50 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
   }
 
   return (
-    <div className="flex-1 bg-zinc-900/30 rounded-lg border border-zinc-800/50">
-      {/* Chart Header */}
-      <div className="flex items-center justify-between p-4 border-b border-zinc-800/50">
+    <div className="w-full md:flex-1 bg-zinc-900/30 rounded-lg border border-zinc-800/50">
+      {/* Chart Header - Mobile */}
+      <div className="md:hidden p-3 border-b border-zinc-800/50 space-y-3">
+        {/* Value and Change - side by side */}
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Account Value</div>
+            <div className="text-xl font-bold text-white font-mono">
+              {formatCurrency(currentValue)}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] text-zinc-500 uppercase tracking-wide">{getPeriodLabel()} Change</div>
+            <div className={cn(
+              'text-lg font-bold font-mono flex items-center justify-end gap-1',
+              isProfitable ? 'text-emerald-400' : 'text-red-400'
+            )}>
+              <i className={cn('fa-solid text-xs', isProfitable ? 'fa-caret-up' : 'fa-caret-down')}></i>
+              {isProfitable ? '+' : ''}{periodChangePercent.toFixed(1)}%
+            </div>
+          </div>
+        </div>
+        
+        {/* Time Period Toggles - full width */}
+        <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg p-1">
+          {(['1D', '1W', '1M', 'ALL'] as TimePeriod[]).map((period) => (
+            <button
+              key={period}
+              onClick={() => setTimePeriod(period)}
+              className={cn(
+                'flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all',
+                timePeriod === period
+                  ? 'bg-zinc-700 text-white'
+                  : 'text-zinc-500'
+              )}
+            >
+              {period}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Chart Header - Desktop */}
+      <div className="hidden md:flex items-center justify-between p-4 border-b border-zinc-800/50">
         {/* Time Period Toggles */}
         <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg p-1">
           {(['1D', '1W', '1M', 'ALL'] as TimePeriod[]).map((period) => (
@@ -279,8 +320,8 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
       </div>
 
       {/* Chart Area */}
-      <div className="p-4">
-        <div className="h-[300px]">
+      <div className="p-2 md:p-4">
+        <div className="h-[200px] md:h-[300px]">
           {loading ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
