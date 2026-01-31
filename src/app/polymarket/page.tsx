@@ -1,56 +1,72 @@
-import { StatCard } from '@/components/stat-card'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DashboardLayout } from '@/components/dashboard'
+import { ChartDataPoint } from '@/types'
+
+// Placeholder data - $0 values until sync is built
+const placeholderChartData: ChartDataPoint[] = [
+  { date: 'Jan 25', timestamp: Date.now() - 6 * 24 * 60 * 60 * 1000, value: 0 },
+  { date: 'Jan 26', timestamp: Date.now() - 5 * 24 * 60 * 60 * 1000, value: 0 },
+  { date: 'Jan 27', timestamp: Date.now() - 4 * 24 * 60 * 60 * 1000, value: 0 },
+  { date: 'Jan 28', timestamp: Date.now() - 3 * 24 * 60 * 60 * 1000, value: 0 },
+  { date: 'Jan 29', timestamp: Date.now() - 2 * 24 * 60 * 60 * 1000, value: 0 },
+  { date: 'Jan 30', timestamp: Date.now() - 1 * 24 * 60 * 60 * 1000, value: 0 },
+  { date: 'Jan 31', timestamp: Date.now(), value: 0 },
+]
 
 export default function PolymarketPage() {
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-white">Polymarket</h1>
-        <p className="text-zinc-400 mt-1">Prediction market positions</p>
+    <div className="container mx-auto px-4 py-6">
+      {/* Sub-header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <button className="flex items-center gap-2 px-4 py-2 bg-zinc-800/50 rounded-full text-sm text-zinc-300 hover:bg-zinc-800 transition-colors">
+            <span>←</span> Back
+          </button>
+          <div className="flex items-center gap-2 px-4 py-2 bg-zinc-800/30 rounded-lg border border-zinc-700/50">
+            <span className="font-mono text-white">Polymarket</span>
+            <span className="text-blue-400">●</span>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <button className="flex items-center gap-2 px-4 py-2 border border-zinc-700 rounded-lg text-sm text-zinc-300 hover:bg-zinc-800/50 transition-colors">
+            <span>⚙</span> Advanced
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 border border-zinc-700 rounded-lg text-sm text-zinc-300 hover:bg-zinc-800/50 transition-colors">
+            <span>📄</span> Report
+          </button>
+          <button className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white transition-colors">
+            Connect Wallet
+          </button>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Total Invested"
-          value="$2,500.00"
-          trend="neutral"
-        />
-        <StatCard
-          title="Current Value"
-          value="$3,120.00"
-          subtitle="+$620.00 (+24.8%)"
-          trend="up"
-        />
-        <StatCard
-          title="Active Bets"
-          value="3"
-          trend="neutral"
-        />
-        <StatCard
-          title="Win Rate"
-          value="67%"
-          subtitle="4 wins / 2 losses"
-          trend="up"
-        />
-      </div>
+      <DashboardLayout
+        totalValue={0}
+        withdrawable={0}
+        totalPositionSize={0}
+        perpEquity={0}
+        marginUsage={0}
+        longExposure={0}
+        shortExposure={0}
+        chartData={placeholderChartData}
+        currentPnl={0}
+        positions={[]}
+        accentColor="blue"
+        title="PnL (Predictions)"
+      />
 
-      {/* Coming Soon */}
-      <Card className="bg-zinc-900 border-zinc-800">
-        <CardHeader>
-          <CardTitle className="text-white">Active Positions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12">
-            <span className="text-6xl">🎯</span>
-            <h3 className="text-xl font-semibold text-white mt-4">Coming Soon</h3>
-            <p className="text-zinc-400 mt-2 max-w-md mx-auto">
-              Polymarket integration is under development. Soon you&apos;ll be able to track all your prediction market positions here.
+      {/* Sync Notice */}
+      <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+        <div className="flex items-center gap-3">
+          <div className="text-2xl">🎯</div>
+          <div>
+            <h3 className="font-medium text-white">Polymarket Sync Coming Soon</h3>
+            <p className="text-sm text-zinc-400 mt-1">
+              Connect your wallet to start tracking prediction market positions. Data sync is under development.
             </p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

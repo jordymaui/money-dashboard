@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Money Dashboard",
-  description: "Portfolio tracking across Hyperliquid, Polymarket & Football.fun",
+  title: "MoneyDash | Portfolio Tracker",
+  description: "Track your portfolio across Hyperliquid, Polymarket & Football.fun",
 };
 
 export default function RootLayout({
@@ -29,7 +29,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-950 text-white min-h-screen`}
       >
         <Nav />
-        <main className="container mx-auto px-4 py-8">
+        <main>
           {children}
         </main>
       </body>

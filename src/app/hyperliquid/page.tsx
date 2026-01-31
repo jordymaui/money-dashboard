@@ -1,8 +1,6 @@
 import { supabase } from '@/lib/supabase'
-import { StatCard } from '@/components/stat-card'
-import { EquityChart } from '@/components/equity-chart'
-import { PositionTable } from '@/components/position-table'
-import { HyperliquidSnapshot, HyperliquidPosition } from '@/types'
+import { DashboardLayout } from '@/components/dashboard'
+import { HyperliquidSnapshot, HyperliquidPosition, ChartDataPoint } from '@/types'
 
 async function getSnapshots() {
   const { data, error } = await supabase
@@ -66,81 +64,90 @@ export default async function HyperliquidPage() {
   ])
 
   // Transform snapshots for the chart
-  const chartData = snapshots.map(snapshot => ({
+  const chartData: ChartDataPoint[] = snapshots.map(snapshot => ({
     date: new Date(snapshot.timestamp).toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric' 
     }),
-    value: snapshot.account_value
+    timestamp: new Date(snapshot.timestamp).getTime(),
+    value: snapshot.account_value,
+    pnl: snapshot.unrealized_pnl
   }))
 
   // Calculate stats
   const accountValue = latestSnapshot?.account_value ?? 0
   const unrealizedPnl = latestSnapshot?.unrealized_pnl ?? 0
+  const withdrawable = latestSnapshot?.withdrawable ?? accountValue * 0.8 // Estimate if not available
   
-  // Calculate daily PnL (compare to previous snapshot)
-  const previousSnapshot = snapshots.length >= 2 ? snapshots[snapshots.length - 2] : null
-  const dailyPnl = previousSnapshot 
-    ? accountValue - previousSnapshot.account_value 
-    : 0
-  const dailyPnlPercent = previousSnapshot && previousSnapshot.account_value > 0
-    ? (dailyPnl / previousSnapshot.account_value) * 100
-    : 0
-
-  // Calculate margin used from positions
+  // Calculate from positions
+  const longPositions = positions.filter(p => p.size > 0)
+  const shortPositions = positions.filter(p => p.size < 0)
+  
+  const longExposure = longPositions.reduce((sum, p) => sum + Math.abs(p.size * (p.current_price || p.entry_price)), 0)
+  const shortExposure = shortPositions.reduce((sum, p) => sum + Math.abs(p.size * (p.current_price || p.entry_price)), 0)
+  const totalPositionSize = longExposure + shortExposure
+  
+  // Calculate margin used and leverage
   const marginUsed = positions.reduce((sum, pos) => {
     const positionValue = Math.abs(pos.size * pos.entry_price)
     return sum + (positionValue / pos.leverage)
   }, 0)
+  
+  const marginUsagePercent = accountValue > 0 ? (marginUsed / accountValue) * 100 : 0
+  const effectiveLeverage = accountValue > 0 ? totalPositionSize / accountValue : 0
+
+  // Calculate current week PnL
+  const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+  const weekStartSnapshot = snapshots.find(s => new Date(s.timestamp).getTime() >= oneWeekAgo)
+  const weekPnl = weekStartSnapshot 
+    ? accountValue - weekStartSnapshot.account_value 
+    : unrealizedPnl
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-white">Hyperliquid</h1>
-        <p className="text-zinc-400 mt-1">Perpetual trading dashboard</p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Account Value"
-          value={`$${accountValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          trend="neutral"
-        />
-        <StatCard
-          title="Daily PnL"
-          value={`${dailyPnl >= 0 ? '+' : ''}$${dailyPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          subtitle={`${dailyPnlPercent >= 0 ? '+' : ''}${dailyPnlPercent.toFixed(2)}%`}
-          trend={dailyPnl >= 0 ? 'up' : 'down'}
-        />
-        <StatCard
-          title="Unrealized PnL"
-          value={`${unrealizedPnl >= 0 ? '+' : ''}$${unrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          trend={unrealizedPnl >= 0 ? 'up' : 'down'}
-        />
-        <StatCard
-          title="Open Positions"
-          value={positions.length.toString()}
-          subtitle={positions.length > 0 ? `${marginUsed.toFixed(2)} margin used` : 'No positions'}
-          trend="neutral"
-        />
-      </div>
-
-      {/* Equity Chart */}
-      {chartData.length > 0 ? (
-        <EquityChart data={chartData} title="Equity Curve" />
-      ) : (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center text-zinc-500">
-          No historical data available yet
+    <div className="container mx-auto px-4 py-6">
+      {/* Sub-header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <button className="flex items-center gap-2 px-4 py-2 bg-zinc-800/50 rounded-full text-sm text-zinc-300 hover:bg-zinc-800 transition-colors">
+            <span>←</span> Back
+          </button>
+          <div className="flex items-center gap-2 px-4 py-2 bg-zinc-800/30 rounded-lg border border-zinc-700/50">
+            <span className="font-mono text-white">Hyperliquid</span>
+            <span className="text-emerald-400">●</span>
+          </div>
         </div>
-      )}
+        
+        <div className="flex items-center gap-2">
+          <button className="flex items-center gap-2 px-4 py-2 border border-zinc-700 rounded-lg text-sm text-zinc-300 hover:bg-zinc-800/50 transition-colors">
+            <span>⚙</span> Advanced
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 border border-zinc-700 rounded-lg text-sm text-zinc-300 hover:bg-zinc-800/50 transition-colors">
+            <span>📄</span> Report
+          </button>
+          <button className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium text-white transition-colors">
+            Copytrade
+          </button>
+        </div>
+      </div>
 
-      {/* Positions Table */}
-      <PositionTable positions={positions} />
+      <DashboardLayout
+        totalValue={accountValue}
+        withdrawable={withdrawable}
+        leverage={effectiveLeverage}
+        totalPositionSize={totalPositionSize}
+        perpEquity={accountValue}
+        marginUsage={marginUsagePercent}
+        longExposure={longExposure}
+        shortExposure={shortExposure}
+        chartData={chartData}
+        currentPnl={weekPnl}
+        positions={positions}
+        accentColor="green"
+        title="PnL (Combined)"
+      />
 
       {/* Data Info */}
-      <div className="text-xs text-zinc-600 text-right">
+      <div className="mt-4 text-xs text-zinc-600 text-right">
         Last updated: {latestSnapshot ? new Date(latestSnapshot.timestamp).toLocaleString() : 'Never'}
       </div>
     </div>
