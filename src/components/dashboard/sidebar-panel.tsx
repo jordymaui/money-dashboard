@@ -10,6 +10,7 @@ interface SidebarPanelProps {
   shortExposure: number
   totalPositionValue: number
   maxPositionValue?: number
+  positionCount?: number
   accentColor?: AccentColor
 }
 
@@ -30,6 +31,7 @@ export function SidebarPanel({
   shortExposure,
   totalPositionValue,
   maxPositionValue = 100000,
+  positionCount = 0,
   accentColor = 'green'
 }: SidebarPanelProps) {
   const accentClasses = {
@@ -132,11 +134,11 @@ export function SidebarPanel({
           <div className="flex items-center gap-2 text-xs">
             <span className="text-emerald-400">
               <i className="fa-solid fa-circle text-[6px] mr-1"></i>
-              0.00%
+              {longPercent.toFixed(2)}%
             </span>
             <span className="text-red-400">
               <i className="fa-solid fa-circle text-[6px] mr-1"></i>
-              100.00%
+              {(100 - longPercent).toFixed(2)}%
             </span>
           </div>
         </div>
@@ -162,7 +164,7 @@ export function SidebarPanel({
             Positions
           </span>
           <span className="text-white font-mono">
-            <span className="text-zinc-400">(2 uni)</span>
+            <span className="text-zinc-400">({positionCount})</span>
           </span>
         </div>
         <div className="flex justify-between text-xs">
@@ -170,14 +172,14 @@ export function SidebarPanel({
             <i className="fa-solid fa-arrow-up mr-1"></i>
             Long: {formatCurrency(longExposure)}
           </span>
-          <span className="text-zinc-600">(0%)</span>
+          <span className="text-zinc-600">({longPercent.toFixed(0)}%)</span>
         </div>
         <div className="flex justify-between text-xs">
           <span className="text-red-400">
             <i className="fa-solid fa-arrow-down mr-1"></i>
             Short: {formatCurrency(shortExposure)}
           </span>
-          <span className="text-zinc-600">(100%)</span>
+          <span className="text-zinc-600">({(100 - longPercent).toFixed(0)}%)</span>
         </div>
       </div>
     </div>

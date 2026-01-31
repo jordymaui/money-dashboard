@@ -70,6 +70,7 @@ export function HyperliquidDashboard({
           longExposure={longExposure}
           shortExposure={shortExposure}
           totalPositionValue={totalPositionSize}
+          positionCount={positions.length}
           accentColor={accentColor}
         />
 
