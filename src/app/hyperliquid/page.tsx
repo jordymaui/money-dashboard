@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { DashboardLayout } from '@/components/dashboard'
+import { HyperliquidHeader } from '@/components/hyperliquid-header'
 import { HyperliquidSnapshot, HyperliquidPosition, ChartDataPoint } from '@/types'
 
 async function getSnapshots() {
@@ -105,31 +106,8 @@ export default async function HyperliquidPage() {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      {/* Sub-header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <button className="flex items-center gap-2 px-4 py-2 bg-zinc-800/50 rounded-full text-sm text-zinc-300 hover:bg-zinc-800 transition-colors">
-            <i className="fa-solid fa-arrow-left"></i> Back
-          </button>
-          <div className="flex items-center gap-2 px-4 py-2 bg-zinc-800/30 rounded-lg border border-zinc-700/50">
-            <i className="fa-solid fa-chart-line text-emerald-400"></i>
-            <span className="font-mono text-white">Hyperliquid</span>
-            <i className="fa-solid fa-circle text-[6px] text-emerald-400"></i>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 border border-zinc-700 rounded-lg text-sm text-zinc-300 hover:bg-zinc-800/50 transition-colors">
-            <i className="fa-solid fa-sliders"></i> Advanced
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 border border-zinc-700 rounded-lg text-sm text-zinc-300 hover:bg-zinc-800/50 transition-colors">
-            <i className="fa-solid fa-file-lines"></i> Report
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium text-white transition-colors">
-            <i className="fa-solid fa-copy"></i> Copytrade
-          </button>
-        </div>
-      </div>
+      {/* Sub-header with Advanced Stats Modal */}
+      <HyperliquidHeader />
 
       <DashboardLayout
         totalValue={accountValue}
