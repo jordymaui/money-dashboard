@@ -224,12 +224,7 @@ export function PositionsTable({ positions, fills = [], accentColor = 'green' }:
                   {formatTime(fill.time)}
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-xs font-bold">
-                      {fill.coin.charAt(0)}
-                    </div>
-                    <span className="font-medium text-white">{fill.coin}</span>
-                  </div>
+                  <span className="font-medium text-white">{fill.coin}</span>
                 </td>
                 <td className="px-4 py-3">
                   <span className={cn(
@@ -313,12 +308,7 @@ export function PositionsTable({ positions, fills = [], accentColor = 'green' }:
                   {formatTime(trade.time)}
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-xs font-bold">
-                      {trade.coin.charAt(0)}
-                    </div>
-                    <span className="font-medium text-white">{trade.coin}</span>
-                  </div>
+                  <span className="font-medium text-white">{trade.coin}</span>
                 </td>
                 <td className="px-4 py-3">
                   <span className={cn(

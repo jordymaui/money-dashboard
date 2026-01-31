@@ -131,21 +131,28 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
       }
 
       if (data && data.length > 0) {
-        // Transform data for chart with time-period-aware labels
+        // Check actual data range to decide label format
+        const firstTimestamp = new Date(data[0].timestamp).getTime()
+        const lastTimestamp = new Date(data[data.length - 1].timestamp).getTime()
+        const dataRangeMs = lastTimestamp - firstTimestamp
+        const ONE_DAY = 24 * 60 * 60 * 1000
+        const ONE_WEEK = 7 * ONE_DAY
+        
+        // Transform data for chart with smart labels based on actual data range
         const transformed: ChartDataPoint[] = data.map(snapshot => {
           const date = new Date(snapshot.timestamp)
           
-          // Format X-axis label based on time period
+          // Format X-axis label based on actual data range (not just selected period)
           let dateLabel: string
-          if (timePeriod === '1D') {
-            // For 1 day, show time only (HH:MM)
+          if (dataRangeMs <= ONE_DAY) {
+            // Data spans <= 1 day: show time only (HH:MM)
             dateLabel = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-          } else if (timePeriod === '1W') {
-            // For 1 week, show day + time (Mon 14:30)
+          } else if (dataRangeMs <= ONE_WEEK) {
+            // Data spans <= 1 week: show day + time (Mon 14:30)
             dateLabel = date.toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + 
                         date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
           } else {
-            // For 1M and ALL, show date (Jan 31)
+            // Data spans > 1 week: show date (Jan 31)
             dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
           }
           
@@ -345,4 +352,3 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
     </div>
   )
 }
-// Deployed 2026-01-31T17:44:58Z
