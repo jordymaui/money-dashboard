@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { fetchHyperliquidState, transformPositions, fetchAllMids } from '@/lib/hyperliquid'
+import { fetchSDFPortfolio, fetchFunPrice } from '@/lib/sdf'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -11,12 +12,14 @@ const REFRESH_INTERVAL = 60 // seconds
 interface PlatformData {
   hyperliquid: { accountValue: number; unrealizedPnl: number; positions: number }
   polymarket: { value: number; pnl: number; positions: number }
+  sdf: { value: number; pnl: number; positions: number }
 }
 
 export default function Home() {
   const [data, setData] = useState<PlatformData>({
     hyperliquid: { accountValue: 0, unrealizedPnl: 0, positions: 0 },
-    polymarket: { value: 0, pnl: 0, positions: 0 }
+    polymarket: { value: 0, pnl: 0, positions: 0 },
+    sdf: { value: 0, pnl: 0, positions: 0 }
   })
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
   const [loading, setLoading] = useState(true)
@@ -58,13 +61,32 @@ export default function Home() {
       const realizedPnl = closedPositions?.reduce((sum, p) => sum + (p.realized_pnl || 0), 0) || 0
       const unrealizedPnl = polyPositions?.reduce((sum, p) => sum + (p.cash_pnl || 0), 0) || 0
 
+      // Fetch SDF data from Base blockchain
+      let sdfData = { value: 0, pnl: 0, positions: 0 }
+      try {
+        const [sdfPortfolio, funPrice] = await Promise.all([
+          fetchSDFPortfolio(),
+          fetchFunPrice()
+        ])
+        const funValue = (sdfPortfolio.funToken?.balanceFormatted || 0) * funPrice
+        const usdcValue = sdfPortfolio.usdcBalance?.balanceFormatted || 0
+        sdfData = {
+          value: funValue + usdcValue,
+          pnl: 0, // No historical PnL tracking yet
+          positions: sdfPortfolio.playerShares.length
+        }
+      } catch (e) {
+        console.error('Error fetching SDF data:', e)
+      }
+
       setData({
         hyperliquid: hyperliquidData,
         polymarket: {
           value: portfolioValue,
           pnl: realizedPnl + unrealizedPnl,
           positions: openPositions.length
-        }
+        },
+        sdf: sdfData
       })
 
       setLastUpdated(new Date())
@@ -96,10 +118,10 @@ export default function Home() {
     return () => clearInterval(timer)
   }, [fetchData])
 
-  const totalValue = data.hyperliquid.accountValue + data.polymarket.value
-  const totalUnrealizedPnl = data.hyperliquid.unrealizedPnl + data.polymarket.pnl
-  const totalPositions = data.hyperliquid.positions + data.polymarket.positions
-  const activePlatforms = (data.hyperliquid.accountValue > 0 ? 1 : 0) + (data.polymarket.value > 0 ? 1 : 0)
+  const totalValue = data.hyperliquid.accountValue + data.polymarket.value + data.sdf.value
+  const totalUnrealizedPnl = data.hyperliquid.unrealizedPnl + data.polymarket.pnl + data.sdf.pnl
+  const totalPositions = data.hyperliquid.positions + data.polymarket.positions + data.sdf.positions
+  const activePlatforms = (data.hyperliquid.accountValue > 0 ? 1 : 0) + (data.polymarket.value > 0 ? 1 : 0) + (data.sdf.value > 0 ? 1 : 0)
 
   const platforms = [
     {
@@ -132,10 +154,10 @@ export default function Home() {
       icon: 'fa-futbol',
       href: '/football',
       accentColor: 'white',
-      value: 0,
-      pnl: 0,
-      positions: 0,
-      status: 'coming-soon',
+      value: data.sdf.value,
+      pnl: data.sdf.pnl,
+      positions: data.sdf.positions,
+      status: data.sdf.value > 0 ? 'live' : 'live',
       description: 'Football.fun'
     }
   ]
