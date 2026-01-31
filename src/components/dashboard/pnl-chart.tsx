@@ -12,8 +12,20 @@ interface PnLChartProps {
   title?: string
 }
 
-const timeRanges: TimeRange[] = ['24H', '1W', '1M', 'All']
-const chartTypes: ChartType[] = ['Combined', 'Perp Only', 'PnL', 'Account Value', 'Show Trades']
+const timeRanges: { label: TimeRange; icon: string }[] = [
+  { label: '24H', icon: 'fa-clock' },
+  { label: '1W', icon: 'fa-calendar-week' },
+  { label: '1M', icon: 'fa-calendar' },
+  { label: 'All', icon: 'fa-infinity' },
+]
+
+const chartTypes: { label: ChartType; icon: string }[] = [
+  { label: 'Combined', icon: 'fa-layer-group' },
+  { label: 'Perp Only', icon: 'fa-chart-line' },
+  { label: 'PnL', icon: 'fa-money-bill-trend-up' },
+  { label: 'Account Value', icon: 'fa-wallet' },
+  { label: 'Show Trades', icon: 'fa-arrows-rotate' },
+]
 
 function formatCurrency(value: number): string {
   const prefix = value >= 0 ? '+' : ''
@@ -51,36 +63,38 @@ export function PnLChart({ data, accentColor = 'green', currentPnl = 0, title = 
       <div className="flex items-center justify-between p-4 border-b border-zinc-800/50">
         {/* Time Range Toggles */}
         <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg p-1">
-          {timeRanges.map(range => (
+          {timeRanges.map(({ label, icon }) => (
             <button
-              key={range}
-              onClick={() => setSelectedTimeRange(range)}
+              key={label}
+              onClick={() => setSelectedTimeRange(label)}
               className={cn(
-                'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
-                selectedTimeRange === range
+                'px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1.5',
+                selectedTimeRange === label
                   ? 'bg-zinc-700 text-white'
                   : 'text-zinc-500 hover:text-zinc-300'
               )}
             >
-              {range}
+              <i className={cn('fa-solid text-[10px]', icon)}></i>
+              {label}
             </button>
           ))}
         </div>
 
         {/* Chart Type Toggles */}
         <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg p-1">
-          {chartTypes.map(type => (
+          {chartTypes.map(({ label, icon }) => (
             <button
-              key={type}
-              onClick={() => setSelectedChartType(type)}
+              key={label}
+              onClick={() => setSelectedChartType(label)}
               className={cn(
-                'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
-                selectedChartType === type
+                'px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1.5',
+                selectedChartType === label
                   ? 'bg-zinc-700 text-white'
                   : 'text-zinc-500 hover:text-zinc-300'
               )}
             >
-              {type}
+              <i className={cn('fa-solid text-[10px]', icon)}></i>
+              {label}
             </button>
           ))}
         </div>
@@ -90,11 +104,18 @@ export function PnLChart({ data, accentColor = 'green', currentPnl = 0, title = 
       <div className="relative p-4">
         {/* PnL Value Display */}
         <div className="absolute top-4 right-4 text-right z-10">
-          <div className="text-xs text-zinc-500">{selectedTimeRange} {title}</div>
+          <div className="text-xs text-zinc-500">
+            <i className="fa-solid fa-chart-area mr-1"></i>
+            {selectedTimeRange} {title}
+          </div>
           <div className={cn(
             'text-2xl font-bold font-mono',
             isProfitable ? 'text-emerald-400' : 'text-red-400'
           )}>
+            <i className={cn(
+              'fa-solid mr-1 text-lg',
+              isProfitable ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'
+            )}></i>
             {formatCurrency(currentPnl)}
           </div>
         </div>
@@ -146,8 +167,9 @@ export function PnLChart({ data, accentColor = 'green', currentPnl = 0, title = 
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-full flex items-center justify-center text-zinc-500">
-              No data available
+            <div className="h-full flex flex-col items-center justify-center text-zinc-500">
+              <i className="fa-solid fa-chart-area text-4xl mb-3 opacity-30"></i>
+              <span>No data available</span>
             </div>
           )}
         </div>

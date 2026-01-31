@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@awesome.me/kit-3d0ecea516": "^1.0.2",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tabs": "^1.1.13",
     "@supabase/supabase-js": "^2.93.3",

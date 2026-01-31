@@ -12,7 +12,14 @@ interface PositionsTableProps {
 type TabType = 'Active Positions' | 'Open Orders' | 'Recent Fills' | 'Completed Trades' | 'TWAP' | 'Deposits & Withdrawals'
 type MarketType = 'Perpetual' | 'Spot'
 
-const tabs: TabType[] = ['Active Positions', 'Open Orders', 'Recent Fills', 'Completed Trades', 'TWAP', 'Deposits & Withdrawals']
+const tabs: { label: TabType; icon: string }[] = [
+  { label: 'Active Positions', icon: 'fa-layer-group' },
+  { label: 'Open Orders', icon: 'fa-clock' },
+  { label: 'Recent Fills', icon: 'fa-check-circle' },
+  { label: 'Completed Trades', icon: 'fa-flag-checkered' },
+  { label: 'TWAP', icon: 'fa-timeline' },
+  { label: 'Deposits & Withdrawals', icon: 'fa-money-bill-transfer' },
+]
 
 function formatCurrency(value: number, decimals = 2): string {
   return `$${Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`
@@ -31,12 +38,6 @@ export function PositionsTable({ positions, accentColor = 'green' }: PositionsTa
   const [selectedTab, setSelectedTab] = useState<TabType>('Active Positions')
   const [marketType, setMarketType] = useState<MarketType>('Perpetual')
 
-  const accentClasses = {
-    green: 'bg-emerald-500/20 text-emerald-400',
-    blue: 'bg-blue-500/20 text-blue-400',
-    white: 'bg-white/20 text-white'
-  }
-
   // Calculate totals for header
   const totalLong = positions.filter(p => p.size > 0).reduce((sum, p) => sum + Math.abs(p.size * (p.current_price || p.entry_price)), 0)
   const totalShort = positions.filter(p => p.size < 0).reduce((sum, p) => sum + Math.abs(p.size * (p.current_price || p.entry_price)), 0)
@@ -48,19 +49,26 @@ export function PositionsTable({ positions, accentColor = 'green' }: PositionsTa
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/50 text-sm">
         <div className="flex items-center gap-6">
           <span className="text-zinc-400">
+            <i className="fa-solid fa-layer-group mr-1.5"></i>
             Positions <span className="text-white font-mono">{positions.length}</span> <span className="text-zinc-600">(2 uni)</span>
           </span>
           <span className="text-zinc-400">
+            <i className="fa-solid fa-sigma mr-1.5"></i>
             Total: <span className="text-white font-mono">{formatCurrency(totalLong + totalShort)}</span>
           </span>
           <span className="text-emerald-400">
+            <i className="fa-solid fa-arrow-up mr-1"></i>
             Long: <span className="font-mono">{formatCurrency(totalLong)}</span> <span className="text-zinc-600">(0%)</span>
           </span>
-          <span className="text-zinc-400">▲</span>
+          <span className="text-zinc-400">
+            <i className="fa-solid fa-triangle-exclamation mr-1"></i>
+          </span>
           <span className="text-red-400">
+            <i className="fa-solid fa-arrow-down mr-1"></i>
             Short: <span className="font-mono">{formatCurrency(totalShort)}</span> <span className="text-zinc-600">(100%)</span>
           </span>
           <span className="text-zinc-400">
+            <i className="fa-solid fa-chart-mixed mr-1.5"></i>
             uPnL: <span className={cn('font-mono', totalUnrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400')}>
               {formatCurrency(totalUnrealizedPnl)}
             </span> <span className="text-zinc-600">(100% max)</span>
@@ -71,19 +79,20 @@ export function PositionsTable({ positions, accentColor = 'green' }: PositionsTa
       {/* Tabs */}
       <div className="flex items-center justify-between px-4 border-b border-zinc-800/50">
         <div className="flex items-center">
-          {tabs.map(tab => (
+          {tabs.map(({ label, icon }) => (
             <button
-              key={tab}
-              onClick={() => setSelectedTab(tab)}
+              key={label}
+              onClick={() => setSelectedTab(label)}
               className={cn(
-                'px-4 py-3 text-sm font-medium transition-all border-b-2 -mb-[1px]',
-                selectedTab === tab
+                'px-4 py-3 text-sm font-medium transition-all border-b-2 -mb-[1px] flex items-center gap-2',
+                selectedTab === label
                   ? 'text-white border-white'
                   : 'text-zinc-500 border-transparent hover:text-zinc-300'
               )}
             >
-              {tab}
-              {tab === 'Open Orders' && <span className="ml-1.5 text-zinc-600">0</span>}
+              <i className={cn('fa-solid text-[10px]', icon)}></i>
+              {label}
+              {label === 'Open Orders' && <span className="text-zinc-600">0</span>}
             </button>
           ))}
         </div>
@@ -95,12 +104,13 @@ export function PositionsTable({ positions, accentColor = 'green' }: PositionsTa
               key={type}
               onClick={() => setMarketType(type)}
               className={cn(
-                'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
+                'px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1.5',
                 marketType === type
                   ? 'bg-zinc-700 text-white'
                   : 'text-zinc-500 hover:text-zinc-300'
               )}
             >
+              <i className={cn('fa-solid text-[10px]', type === 'Perpetual' ? 'fa-infinity' : 'fa-coins')}></i>
               {type}
             </button>
           ))}
@@ -112,23 +122,41 @@ export function PositionsTable({ positions, accentColor = 'green' }: PositionsTa
         <table className="w-full">
           <thead>
             <tr className="border-b border-zinc-800/50">
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Asset</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Type</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">
-                Position Value / Size <span className="text-zinc-600">↓</span>
+              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">
+                <i className="fa-solid fa-coins mr-1.5"></i>Asset
               </th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">Unrealized PnL</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">Entry Price</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">Current Price</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">Liq. Price</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">Margin Used</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">Funding</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">
+                <i className="fa-solid fa-tag mr-1.5"></i>Type
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">
+                <i className="fa-solid fa-dollar-sign mr-1.5"></i>Position Value / Size
+                <i className="fa-solid fa-sort-down ml-1 text-zinc-600"></i>
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">
+                <i className="fa-solid fa-chart-line mr-1.5"></i>Unrealized PnL
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">
+                <i className="fa-solid fa-right-to-bracket mr-1.5"></i>Entry Price
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">
+                <i className="fa-solid fa-clock mr-1.5"></i>Current Price
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">
+                <i className="fa-solid fa-skull-crossbones mr-1.5"></i>Liq. Price
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">
+                <i className="fa-solid fa-lock mr-1.5"></i>Margin Used
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">
+                <i className="fa-solid fa-percent mr-1.5"></i>Funding
+              </th>
             </tr>
           </thead>
           <tbody>
             {positions.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-4 py-12 text-center text-zinc-500">
+                  <i className="fa-solid fa-inbox text-3xl mb-3 opacity-30 block"></i>
                   No open positions
                 </td>
               </tr>
@@ -153,9 +181,10 @@ export function PositionsTable({ positions, accentColor = 'green' }: PositionsTa
                     </td>
                     <td className="px-4 py-3">
                       <span className={cn(
-                        'px-2 py-1 rounded text-xs font-bold',
+                        'px-2 py-1 rounded text-xs font-bold inline-flex items-center gap-1',
                         isLong ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
                       )}>
+                        <i className={cn('fa-solid', isLong ? 'fa-arrow-up' : 'fa-arrow-down')}></i>
                         {isLong ? 'LONG' : 'SHORT'}
                       </span>
                     </td>
@@ -166,7 +195,8 @@ export function PositionsTable({ positions, accentColor = 'green' }: PositionsTa
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className={cn('font-mono font-medium', isProfitable ? 'text-emerald-400' : 'text-red-400')}>
+                      <div className={cn('font-mono font-medium inline-flex items-center gap-1', isProfitable ? 'text-emerald-400' : 'text-red-400')}>
+                        <i className={cn('fa-solid text-[10px]', isProfitable ? 'fa-caret-up' : 'fa-caret-down')}></i>
                         {isProfitable ? '+' : '-'}{formatCurrency(position.unrealized_pnl)}
                       </div>
                       <div className={cn('text-xs font-mono', isProfitable ? 'text-emerald-400/70' : 'text-red-400/70')}>
@@ -198,6 +228,7 @@ export function PositionsTable({ positions, accentColor = 'green' }: PositionsTa
 
       {/* Footer */}
       <div className="px-4 py-2 text-xs text-zinc-600 text-center border-t border-zinc-800/50">
+        <i className="fa-solid fa-bolt mr-1"></i>
         Hyper-Batch_info • Powered by Hyperliquid
       </div>
     </div>

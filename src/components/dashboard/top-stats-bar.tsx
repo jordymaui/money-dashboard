@@ -38,7 +38,10 @@ export function TopStatsBar({
         {/* Total Value */}
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500 text-sm">Total Value</span>
+            <span className="text-zinc-500 text-sm">
+              <i className="fa-solid fa-sack-dollar mr-1.5"></i>
+              Total Value
+            </span>
             <span className="text-xs text-zinc-600 px-1.5 py-0.5 rounded bg-zinc-800">Combined</span>
           </div>
           <div className={cn('text-2xl font-bold font-mono', accentClasses[accentColor])}>
@@ -47,12 +50,14 @@ export function TopStatsBar({
           <div className="flex items-center gap-3 text-xs text-zinc-500 mt-0.5">
             {perpEquity !== undefined && (
               <span>
-                <span className={accentClasses[accentColor]}>◆</span> Perp: {formatCurrency(perpEquity)}
+                <i className={cn('fa-solid fa-diamond mr-1', accentClasses[accentColor])}></i>
+                Perp: {formatCurrency(perpEquity)}
               </span>
             )}
             {spotValue > 0 && (
               <span>
-                <span className="text-yellow-400">◆</span> Spot: {formatCurrency(spotValue)}
+                <i className="fa-solid fa-diamond mr-1 text-yellow-400"></i>
+                Spot: {formatCurrency(spotValue)}
               </span>
             )}
           </div>
@@ -61,7 +66,10 @@ export function TopStatsBar({
         {/* Withdrawable */}
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500 text-sm">Withdrawable</span>
+            <span className="text-zinc-500 text-sm">
+              <i className="fa-solid fa-money-bill-transfer mr-1.5"></i>
+              Withdrawable
+            </span>
             <span className="text-zinc-600 text-xs">0.00%</span>
           </div>
           <div className="text-xl font-bold font-mono text-white">
@@ -74,7 +82,10 @@ export function TopStatsBar({
         {leverage !== undefined && (
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-zinc-500 text-sm">Leverage</span>
+              <span className="text-zinc-500 text-sm">
+                <i className="fa-solid fa-scale-balanced mr-1.5"></i>
+                Leverage
+              </span>
               <span className={cn(
                 'text-xs px-2 py-0.5 rounded-full font-medium',
                 leverage > 5 ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'
@@ -92,8 +103,14 @@ export function TopStatsBar({
 
       {/* Right side info */}
       <div className="text-right text-xs text-zinc-500">
-        <div>Next refresh in 7s</div>
-        <div className="text-zinc-600 mt-1">Support us</div>
+        <div>
+          <i className="fa-solid fa-rotate mr-1"></i>
+          Next refresh in 7s
+        </div>
+        <div className="text-zinc-600 mt-1">
+          <i className="fa-solid fa-heart mr-1"></i>
+          Support us
+        </div>
       </div>
     </div>
   )

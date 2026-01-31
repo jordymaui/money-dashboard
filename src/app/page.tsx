@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import { TrendingUp, Target, CircleDot, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 async function getLatestHyperliquidData() {
@@ -37,7 +36,7 @@ export default async function Home() {
     {
       id: 'hyperliquid',
       name: 'Hyperliquid',
-      icon: TrendingUp,
+      icon: 'fa-chart-line',
       href: '/hyperliquid',
       accentColor: 'emerald',
       value: hyperliquidData.accountValue,
@@ -49,7 +48,7 @@ export default async function Home() {
     {
       id: 'polymarket',
       name: 'Polymarket',
-      icon: Target,
+      icon: 'fa-bullseye',
       href: '/polymarket',
       accentColor: 'blue',
       value: 0,
@@ -61,7 +60,7 @@ export default async function Home() {
     {
       id: 'sdf',
       name: 'SDF',
-      icon: CircleDot,
+      icon: 'fa-futbol',
       href: '/football',
       accentColor: 'white',
       value: 0,
@@ -76,7 +75,10 @@ export default async function Home() {
     <div className="container mx-auto px-4 py-8">
       {/* Hero Section */}
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-white mb-2">Portfolio Overview</h1>
+        <h1 className="text-4xl font-bold text-white mb-2">
+          <i className="fa-solid fa-chart-pie mr-3 text-emerald-400"></i>
+          Portfolio Overview
+        </h1>
         <p className="text-zinc-400">Track all your positions across platforms</p>
       </div>
 
@@ -84,7 +86,10 @@ export default async function Home() {
       <div className="bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 rounded-2xl border border-zinc-700/50 p-6 mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-zinc-400 text-sm mb-1">Total Portfolio Value</p>
+            <p className="text-zinc-400 text-sm mb-1">
+              <i className="fa-solid fa-sack-dollar mr-2"></i>
+              Total Portfolio Value
+            </p>
             <p className="text-4xl font-bold font-mono text-white">
               ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
@@ -93,14 +98,20 @@ export default async function Home() {
                 'flex items-center gap-1 text-sm font-mono',
                 hyperliquidData.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
               )}>
-                {hyperliquidData.unrealizedPnl >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                <i className={cn(
+                  'fa-solid',
+                  hyperliquidData.unrealizedPnl >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'
+                )}></i>
                 {hyperliquidData.unrealizedPnl >= 0 ? '+' : ''}${hyperliquidData.unrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
               <span className="text-zinc-500 text-sm">Unrealized PnL</span>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-zinc-500 text-sm">Active Platforms</p>
+            <p className="text-zinc-500 text-sm">
+              <i className="fa-solid fa-plug mr-2"></i>
+              Active Platforms
+            </p>
             <p className="text-2xl font-bold text-white">1 / 3</p>
           </div>
         </div>
@@ -109,7 +120,6 @@ export default async function Home() {
       {/* Platform Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {platforms.map((platform) => {
-          const Icon = platform.icon
           const isProfitable = platform.pnl >= 0
           const isLive = platform.status === 'live'
           
@@ -152,11 +162,12 @@ export default async function Home() {
                 <div className="absolute top-4 right-4">
                   {isLive ? (
                     <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/20 rounded-full">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <i className="fa-solid fa-circle text-[6px] text-emerald-400 animate-pulse"></i>
                       <span className="text-xs text-emerald-400 font-medium">Live</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5 px-2 py-1 bg-zinc-700/50 rounded-full">
+                      <i className="fa-solid fa-clock text-[10px] text-zinc-400"></i>
                       <span className="text-xs text-zinc-400 font-medium">Coming Soon</span>
                     </div>
                   )}
@@ -169,7 +180,7 @@ export default async function Home() {
                       'w-12 h-12 rounded-xl flex items-center justify-center',
                       colors.bg + '/20'
                     )}>
-                      <Icon className={cn('w-6 h-6', colors.text)} />
+                      <i className={cn('fa-solid', platform.icon, 'text-xl', colors.text)}></i>
                     </div>
                     <div>
                       <h3 className="text-lg font-bold text-white">{platform.name}</h3>
@@ -180,7 +191,10 @@ export default async function Home() {
                   {/* Stats */}
                   <div className="space-y-4">
                     <div>
-                      <p className="text-zinc-500 text-xs mb-1">Account Value</p>
+                      <p className="text-zinc-500 text-xs mb-1">
+                        <i className="fa-solid fa-wallet mr-1"></i>
+                        Account Value
+                      </p>
                       <p className={cn('text-2xl font-bold font-mono', colors.text)}>
                         ${platform.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
@@ -188,7 +202,10 @@ export default async function Home() {
 
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-zinc-500 text-xs mb-1">Unrealized PnL</p>
+                        <p className="text-zinc-500 text-xs mb-1">
+                          <i className="fa-solid fa-chart-mixed mr-1"></i>
+                          Unrealized PnL
+                        </p>
                         <p className={cn(
                           'text-sm font-mono font-medium',
                           isProfitable ? 'text-emerald-400' : 'text-red-400'
@@ -197,7 +214,10 @@ export default async function Home() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-zinc-500 text-xs mb-1">Positions</p>
+                        <p className="text-zinc-500 text-xs mb-1">
+                          <i className="fa-solid fa-layer-group mr-1"></i>
+                          Positions
+                        </p>
                         <p className="text-sm font-mono text-white">{platform.positions}</p>
                       </div>
                     </div>
@@ -205,7 +225,9 @@ export default async function Home() {
 
                   {/* Footer */}
                   <div className="mt-6 pt-4 border-t border-zinc-800/50 flex items-center justify-between">
-                    <span className="text-xs text-zinc-500">View Dashboard →</span>
+                    <span className="text-xs text-zinc-500">
+                      View Dashboard <i className="fa-solid fa-arrow-right ml-1"></i>
+                    </span>
                     <div className={cn('w-2 h-2 rounded-full', colors.dot)} />
                   </div>
                 </div>
@@ -218,19 +240,31 @@ export default async function Home() {
       {/* Quick Stats */}
       <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-zinc-900/50 rounded-lg border border-zinc-800/50 p-4">
-          <p className="text-zinc-500 text-xs mb-1">Total Positions</p>
+          <p className="text-zinc-500 text-xs mb-1">
+            <i className="fa-solid fa-boxes-stacked mr-1"></i>
+            Total Positions
+          </p>
           <p className="text-xl font-bold font-mono text-white">{hyperliquidData.positions}</p>
         </div>
         <div className="bg-zinc-900/50 rounded-lg border border-zinc-800/50 p-4">
-          <p className="text-zinc-500 text-xs mb-1">Active Markets</p>
+          <p className="text-zinc-500 text-xs mb-1">
+            <i className="fa-solid fa-store mr-1"></i>
+            Active Markets
+          </p>
           <p className="text-xl font-bold font-mono text-white">1</p>
         </div>
         <div className="bg-zinc-900/50 rounded-lg border border-zinc-800/50 p-4">
-          <p className="text-zinc-500 text-xs mb-1">Coming Soon</p>
+          <p className="text-zinc-500 text-xs mb-1">
+            <i className="fa-solid fa-hourglass-half mr-1"></i>
+            Coming Soon
+          </p>
           <p className="text-xl font-bold font-mono text-white">2</p>
         </div>
         <div className="bg-zinc-900/50 rounded-lg border border-zinc-800/50 p-4">
-          <p className="text-zinc-500 text-xs mb-1">Last Update</p>
+          <p className="text-zinc-500 text-xs mb-1">
+            <i className="fa-solid fa-clock-rotate-left mr-1"></i>
+            Last Update
+          </p>
           <p className="text-sm font-mono text-zinc-400">Just now</p>
         </div>
       </div>

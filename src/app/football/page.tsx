@@ -19,23 +19,24 @@ export default function FootballPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <button className="flex items-center gap-2 px-4 py-2 bg-zinc-800/50 rounded-full text-sm text-zinc-300 hover:bg-zinc-800 transition-colors">
-            <span>←</span> Back
+            <i className="fa-solid fa-arrow-left"></i> Back
           </button>
           <div className="flex items-center gap-2 px-4 py-2 bg-zinc-800/30 rounded-lg border border-zinc-700/50">
+            <i className="fa-solid fa-futbol text-white"></i>
             <span className="font-mono text-white">SDF (Football.fun)</span>
-            <span className="text-white">●</span>
+            <i className="fa-solid fa-circle text-[6px] text-white"></i>
           </div>
         </div>
         
         <div className="flex items-center gap-2">
           <button className="flex items-center gap-2 px-4 py-2 border border-zinc-700 rounded-lg text-sm text-zinc-300 hover:bg-zinc-800/50 transition-colors">
-            <span>⚙</span> Advanced
+            <i className="fa-solid fa-sliders"></i> Advanced
           </button>
           <button className="flex items-center gap-2 px-4 py-2 border border-zinc-700 rounded-lg text-sm text-zinc-300 hover:bg-zinc-800/50 transition-colors">
-            <span>📄</span> Report
+            <i className="fa-solid fa-file-lines"></i> Report
           </button>
-          <button className="px-4 py-2 bg-white hover:bg-zinc-200 rounded-lg text-sm font-medium text-zinc-900 transition-colors">
-            Connect Wallet
+          <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-zinc-200 rounded-lg text-sm font-medium text-zinc-900 transition-colors">
+            <i className="fa-solid fa-wallet"></i> Connect Wallet
           </button>
         </div>
       </div>
@@ -58,9 +59,14 @@ export default function FootballPage() {
       {/* Sync Notice */}
       <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-lg">
         <div className="flex items-center gap-3">
-          <div className="text-2xl">⚽</div>
+          <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+            <i className="fa-solid fa-futbol text-2xl text-white"></i>
+          </div>
           <div>
-            <h3 className="font-medium text-white">SDF Sync Coming Soon</h3>
+            <h3 className="font-medium text-white">
+              <i className="fa-solid fa-plug mr-2"></i>
+              SDF Sync Coming Soon
+            </h3>
             <p className="text-sm text-zinc-400 mt-1">
               Connect your wallet to start tracking football player cards and staking positions. Data sync is under development.
             </p>

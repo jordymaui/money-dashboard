@@ -3,13 +3,12 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { BarChart3, TrendingUp, Target, CircleDot, ChevronDown, Search, Settings } from 'lucide-react'
 
 const navItems = [
-  { href: '/', label: 'Overview', icon: BarChart3 },
-  { href: '/hyperliquid', label: 'Hyperliquid', icon: TrendingUp, accent: 'green' },
-  { href: '/polymarket', label: 'Polymarket', icon: Target, accent: 'blue' },
-  { href: '/football', label: 'SDF', icon: CircleDot, accent: 'white' },
+  { href: '/', label: 'Overview', icon: 'fa-chart-pie' },
+  { href: '/hyperliquid', label: 'Hyperliquid', icon: 'fa-chart-line', accent: 'green' },
+  { href: '/polymarket', label: 'Polymarket', icon: 'fa-bullseye', accent: 'blue' },
+  { href: '/football', label: 'SDF', icon: 'fa-futbol', accent: 'white' },
 ]
 
 export function Nav() {
@@ -24,7 +23,7 @@ export function Nav() {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">M</span>
+                <i className="fa-solid fa-money-bill-trend-up text-white text-sm"></i>
               </div>
               <span className="text-lg font-bold text-white">MoneyDash</span>
             </Link>
@@ -32,7 +31,6 @@ export function Nav() {
             {/* Nav Items */}
             <div className="flex items-center gap-1">
               {navItems.map((item) => {
-                const Icon = item.icon
                 const isActive = pathname === item.href
                 
                 return (
@@ -46,9 +44,9 @@ export function Nav() {
                         : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
                     )}
                   >
-                    <Icon className="w-4 h-4" />
+                    <i className={cn('fa-solid', item.icon, 'w-4 text-center')}></i>
                     {item.label}
-                    {item.href !== '/' && <ChevronDown className="w-3 h-3 opacity-50" />}
+                    {item.href !== '/' && <i className="fa-solid fa-chevron-down text-[10px] opacity-50"></i>}
                   </Link>
                 )
               })}
@@ -58,12 +56,13 @@ export function Nav() {
           {/* Right side - Actions */}
           <div className="flex items-center gap-2">
             <button className="p-2 text-zinc-400 hover:text-white transition-colors">
-              <Search className="w-4 h-4" />
+              <i className="fa-solid fa-magnifying-glass"></i>
             </button>
             <button className="p-2 text-zinc-400 hover:text-white transition-colors">
-              <Settings className="w-4 h-4" />
+              <i className="fa-solid fa-gear"></i>
             </button>
-            <div className="ml-2 px-3 py-1.5 bg-zinc-800/50 rounded-full text-xs text-zinc-400 font-mono">
+            <div className="ml-2 px-3 py-1.5 bg-zinc-800/50 rounded-full text-xs text-zinc-400 font-mono flex items-center gap-2">
+              <i className="fa-solid fa-wallet text-emerald-400"></i>
               0x...29eD
             </div>
           </div>

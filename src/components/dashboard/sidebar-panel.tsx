@@ -56,7 +56,10 @@ export function SidebarPanel({
     <div className="w-[280px] bg-zinc-900/50 rounded-lg border border-zinc-800/50 p-4 space-y-5">
       {/* Perp Equity */}
       <div>
-        <h3 className="text-zinc-500 text-sm mb-1">Perp Equity</h3>
+        <h3 className="text-zinc-500 text-sm mb-1">
+          <i className="fa-solid fa-chart-line mr-1.5"></i>
+          Perp Equity
+        </h3>
         <div className={cn('text-2xl font-bold font-mono', accentTextClasses[accentColor])}>
           {formatCurrency(perpEquity)}
         </div>
@@ -65,7 +68,10 @@ export function SidebarPanel({
       {/* Margin Usage */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-zinc-500 text-sm">Margin Usage</h3>
+          <h3 className="text-zinc-500 text-sm">
+            <i className="fa-solid fa-gauge-high mr-1.5"></i>
+            Margin Usage
+          </h3>
           <span className="text-white font-mono text-sm">{marginUsage.toFixed(2)}%</span>
         </div>
         <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
@@ -79,13 +85,20 @@ export function SidebarPanel({
       {/* Direction Bias */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-zinc-500 text-sm">Direction Bias</h3>
+          <h3 className="text-zinc-500 text-sm">
+            <i className="fa-solid fa-compass mr-1.5"></i>
+            Direction Bias
+          </h3>
           <div className="flex items-center gap-1">
             <span className={cn(
               'text-sm font-bold',
               directionBias === 'SHORT' ? 'text-red-400' : directionBias === 'LONG' ? 'text-emerald-400' : 'text-zinc-400'
             )}>
-              ◆ {directionBias}
+              <i className={cn(
+                'fa-solid mr-1',
+                directionBias === 'SHORT' ? 'fa-arrow-down' : directionBias === 'LONG' ? 'fa-arrow-up' : 'fa-minus'
+              )}></i>
+              {directionBias}
             </span>
           </div>
         </div>
@@ -112,10 +125,19 @@ export function SidebarPanel({
       {/* Position Distribution */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-zinc-500 text-sm">Position Distribution</h3>
+          <h3 className="text-zinc-500 text-sm">
+            <i className="fa-solid fa-chart-pie mr-1.5"></i>
+            Position Distribution
+          </h3>
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-emerald-400">● 0.00%</span>
-            <span className="text-red-400">● 100.00%</span>
+            <span className="text-emerald-400">
+              <i className="fa-solid fa-circle text-[6px] mr-1"></i>
+              0.00%
+            </span>
+            <span className="text-red-400">
+              <i className="fa-solid fa-circle text-[6px] mr-1"></i>
+              100.00%
+            </span>
           </div>
         </div>
         <div className="relative">
@@ -135,17 +157,26 @@ export function SidebarPanel({
       {/* Position Summary */}
       <div className="pt-3 border-t border-zinc-800/50 space-y-1.5">
         <div className="flex justify-between text-sm">
-          <span className="text-zinc-500">Positions</span>
+          <span className="text-zinc-500">
+            <i className="fa-solid fa-layer-group mr-1.5"></i>
+            Positions
+          </span>
           <span className="text-white font-mono">
             <span className="text-zinc-400">(2 uni)</span>
           </span>
         </div>
         <div className="flex justify-between text-xs">
-          <span className="text-emerald-400">Long: {formatCurrency(longExposure)}</span>
+          <span className="text-emerald-400">
+            <i className="fa-solid fa-arrow-up mr-1"></i>
+            Long: {formatCurrency(longExposure)}
+          </span>
           <span className="text-zinc-600">(0%)</span>
         </div>
         <div className="flex justify-between text-xs">
-          <span className="text-red-400">Short: {formatCurrency(shortExposure)}</span>
+          <span className="text-red-400">
+            <i className="fa-solid fa-arrow-down mr-1"></i>
+            Short: {formatCurrency(shortExposure)}
+          </span>
           <span className="text-zinc-600">(100%)</span>
         </div>
       </div>
