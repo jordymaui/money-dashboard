@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PolymarketPosition, PolymarketClosedPosition, PolymarketActivity } from '@/types'
 import Link from 'next/link'
@@ -9,6 +9,8 @@ import { PolymarketChart } from '@/components/polymarket-chart'
 
 type TimePeriod = '1D' | '1W' | '1M' | 'ALL'
 type TabType = 'positions' | 'orders' | 'history'
+
+const REFRESH_INTERVAL = 60 // seconds
 
 function formatCurrency(value: number, decimals = 2): string {
   return `$${Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`
@@ -301,27 +303,46 @@ export default function PolymarketPage() {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('ALL')
   const [activeTab, setActiveTab] = useState<TabType>('positions')
   const [historyView, setHistoryView] = useState<'all' | 'activity' | 'closed'>('all')
+  const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [positionsRes, closedRes, activityRes] = await Promise.all([
-          supabase.from('polymarket_positions').select('*').order('current_value', { ascending: false }),
-          supabase.from('polymarket_closed_positions').select('*').order('timestamp', { ascending: false }),
-          supabase.from('polymarket_activity').select('*').order('timestamp', { ascending: false })
-        ])
-        
-        if (positionsRes.data) setPositions(positionsRes.data)
-        if (closedRes.data) setClosedPositions(closedRes.data)
-        if (activityRes.data) setActivity(activityRes.data)
-      } catch (err) {
-        console.error('Error fetching data:', err)
-      } finally {
-        setLoading(false)
-      }
+  const fetchData = useCallback(async () => {
+    try {
+      const [positionsRes, closedRes, activityRes] = await Promise.all([
+        supabase.from('polymarket_positions').select('*').order('current_value', { ascending: false }),
+        supabase.from('polymarket_closed_positions').select('*').order('timestamp', { ascending: false }),
+        supabase.from('polymarket_activity').select('*').order('timestamp', { ascending: false })
+      ])
+      
+      if (positionsRes.data) setPositions(positionsRes.data)
+      if (closedRes.data) setClosedPositions(closedRes.data)
+      if (activityRes.data) setActivity(activityRes.data)
+      setCountdown(REFRESH_INTERVAL)
+    } catch (err) {
+      console.error('Error fetching data:', err)
+    } finally {
+      setLoading(false)
     }
-    fetchData()
   }, [])
+
+  // Initial fetch
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // Countdown timer with auto-refresh
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          fetchData()
+          return REFRESH_INTERVAL
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [fetchData])
 
   // Calculate portfolio stats
   const openPositions = positions.filter(p => !p.redeemable && p.current_value > 0)
@@ -405,14 +426,42 @@ export default function PolymarketPage() {
         >
           <i className="fa-solid fa-arrow-left"></i> Back
         </Link>
-        <a 
-          href="https://polymarket.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white transition-colors"
-        >
-          <i className="fa-solid fa-external-link"></i> Trade
-        </a>
+        <div className="flex items-center gap-3">
+          {/* Refresh Timer */}
+          <div className="flex items-center gap-2 bg-zinc-800/50 rounded-lg px-3 py-2 border border-zinc-700/50">
+            <div className="relative w-5 h-5">
+              <svg className="w-5 h-5 -rotate-90" viewBox="0 0 20 20">
+                <circle
+                  cx="10"
+                  cy="10"
+                  r="8"
+                  fill="none"
+                  stroke="#3f3f46"
+                  strokeWidth="2"
+                />
+                <circle
+                  cx="10"
+                  cy="10"
+                  r="8"
+                  fill="none"
+                  stroke="#3b82f6"
+                  strokeWidth="2"
+                  strokeDasharray={`${(countdown / REFRESH_INTERVAL) * 50.27} 50.27`}
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+            <span className="text-zinc-400 text-sm font-mono">{countdown}s</span>
+          </div>
+          <a 
+            href="https://polymarket.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white transition-colors"
+          >
+            <i className="fa-solid fa-external-link"></i> Trade
+          </a>
+        </div>
       </div>
 
       {/* Portfolio Summary Section */}
