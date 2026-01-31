@@ -1,62 +1,105 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { fetchHyperliquidState, transformPositions, fetchAllMids } from '@/lib/hyperliquid'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
-async function getLatestHyperliquidData() {
-  const { data: snapshot } = await supabase
-    .from('hyperliquid_snapshots')
-    .select('*')
-    .order('timestamp', { ascending: false })
-    .limit(1)
-    .single()
+const REFRESH_INTERVAL = 60 // seconds
 
-  if (!snapshot) return { accountValue: 0, unrealizedPnl: 0, positions: 0 }
-
-  const { data: positions } = await supabase
-    .from('hyperliquid_positions')
-    .select('id')
-    .eq('snapshot_id', snapshot.id)
-
-  return {
-    accountValue: snapshot.account_value || 0,
-    unrealizedPnl: snapshot.unrealized_pnl || 0,
-    positions: positions?.length || 0
-  }
+interface PlatformData {
+  hyperliquid: { accountValue: number; unrealizedPnl: number; positions: number }
+  polymarket: { value: number; pnl: number; positions: number }
 }
 
-async function getPolymarketData() {
-  // Get open positions
-  const { data: positions } = await supabase
-    .from('polymarket_positions')
-    .select('*')
-    .eq('redeemable', false)
+export default function Home() {
+  const [data, setData] = useState<PlatformData>({
+    hyperliquid: { accountValue: 0, unrealizedPnl: 0, positions: 0 },
+    polymarket: { value: 0, pnl: 0, positions: 0 }
+  })
+  const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
+  const [loading, setLoading] = useState(true)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
-  // Get closed positions for realized P&L
-  const { data: closedPositions } = await supabase
-    .from('polymarket_closed_positions')
-    .select('realized_pnl')
+  const fetchData = useCallback(async () => {
+    try {
+      // Fetch Hyperliquid data from live API
+      const [state, mids] = await Promise.all([
+        fetchHyperliquidState(),
+        fetchAllMids()
+      ])
 
-  const openPositions = positions?.filter(p => (p.current_value || 0) > 0) || []
-  const portfolioValue = openPositions.reduce((sum, p) => sum + (p.current_value || 0), 0)
-  const realizedPnl = closedPositions?.reduce((sum, p) => sum + (p.realized_pnl || 0), 0) || 0
-  const unrealizedPnl = positions?.reduce((sum, p) => sum + (p.cash_pnl || 0), 0) || 0
-  const totalPnl = realizedPnl + unrealizedPnl
+      let hyperliquidData = { accountValue: 0, unrealizedPnl: 0, positions: 0 }
+      
+      if (state) {
+        const positions = transformPositions(state, mids)
+        const totalUnrealizedPnl = positions.reduce((sum, p) => sum + p.unrealized_pnl, 0)
+        
+        hyperliquidData = {
+          accountValue: parseFloat(state.marginSummary.accountValue),
+          unrealizedPnl: totalUnrealizedPnl,
+          positions: positions.length
+        }
+      }
 
-  return {
-    value: portfolioValue,
-    pnl: totalPnl,
-    positions: openPositions.length
-  }
-}
+      // Fetch Polymarket data from Supabase
+      const { data: polyPositions } = await supabase
+        .from('polymarket_positions')
+        .select('*')
+        .eq('redeemable', false)
 
-export const revalidate = 60
+      const { data: closedPositions } = await supabase
+        .from('polymarket_closed_positions')
+        .select('realized_pnl')
 
-export default async function Home() {
-  const hyperliquidData = await getLatestHyperliquidData()
-  const polymarketData = await getPolymarketData()
-  
-  // Calculate total portfolio value
-  const totalValue = hyperliquidData.accountValue + polymarketData.value + 0 // SDF is $0 for now
+      const openPositions = polyPositions?.filter(p => (p.current_value || 0) > 0) || []
+      const portfolioValue = openPositions.reduce((sum, p) => sum + (p.current_value || 0), 0)
+      const realizedPnl = closedPositions?.reduce((sum, p) => sum + (p.realized_pnl || 0), 0) || 0
+      const unrealizedPnl = polyPositions?.reduce((sum, p) => sum + (p.cash_pnl || 0), 0) || 0
+
+      setData({
+        hyperliquid: hyperliquidData,
+        polymarket: {
+          value: portfolioValue,
+          pnl: realizedPnl + unrealizedPnl,
+          positions: openPositions.length
+        }
+      })
+
+      setLastUpdated(new Date())
+      setCountdown(REFRESH_INTERVAL)
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // Initial fetch
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // Countdown timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          fetchData()
+          return REFRESH_INTERVAL
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [fetchData])
+
+  const totalValue = data.hyperliquid.accountValue + data.polymarket.value
+  const totalUnrealizedPnl = data.hyperliquid.unrealizedPnl + data.polymarket.pnl
+  const totalPositions = data.hyperliquid.positions + data.polymarket.positions
+  const activePlatforms = (data.hyperliquid.accountValue > 0 ? 1 : 0) + (data.polymarket.value > 0 ? 1 : 0)
 
   const platforms = [
     {
@@ -65,9 +108,9 @@ export default async function Home() {
       icon: 'fa-chart-line',
       href: '/hyperliquid',
       accentColor: 'emerald',
-      value: hyperliquidData.accountValue,
-      pnl: hyperliquidData.unrealizedPnl,
-      positions: hyperliquidData.positions,
+      value: data.hyperliquid.accountValue,
+      pnl: data.hyperliquid.unrealizedPnl,
+      positions: data.hyperliquid.positions,
       status: 'live',
       description: 'Perpetual trading'
     },
@@ -77,9 +120,9 @@ export default async function Home() {
       icon: 'fa-bullseye',
       href: '/polymarket',
       accentColor: 'blue',
-      value: polymarketData.value,
-      pnl: polymarketData.pnl,
-      positions: polymarketData.positions,
+      value: data.polymarket.value,
+      pnl: data.polymarket.pnl,
+      positions: data.polymarket.positions,
       status: 'live',
       description: 'Prediction markets'
     },
@@ -97,15 +140,57 @@ export default async function Home() {
     }
   ]
 
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+            <div className="text-zinc-400">Loading portfolio data...</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Hero Section */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-white mb-2">
-          <i className="fa-solid fa-chart-pie mr-3 text-emerald-400"></i>
-          Portfolio Overview
-        </h1>
-        <p className="text-zinc-400">Track all your positions across platforms</p>
+      {/* Hero Section with Refresh Timer */}
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-white mb-2">
+            <i className="fa-solid fa-chart-pie mr-3 text-emerald-400"></i>
+            Portfolio Overview
+          </h1>
+          <p className="text-zinc-400">Track all your positions across platforms</p>
+        </div>
+        
+        {/* Refresh Timer */}
+        <div className="flex items-center gap-2 bg-zinc-800/50 rounded-lg px-3 py-2 border border-zinc-700/50">
+          <div className="relative w-5 h-5">
+            <svg className="w-5 h-5 -rotate-90" viewBox="0 0 20 20">
+              <circle
+                cx="10"
+                cy="10"
+                r="8"
+                fill="none"
+                stroke="#3f3f46"
+                strokeWidth="2"
+              />
+              <circle
+                cx="10"
+                cy="10"
+                r="8"
+                fill="none"
+                stroke="#22c55e"
+                strokeWidth="2"
+                strokeDasharray={`${(countdown / REFRESH_INTERVAL) * 50.27} 50.27`}
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
+          <span className="text-zinc-400 text-sm font-mono">{countdown}s</span>
+        </div>
       </div>
 
       {/* Total Value Card */}
@@ -122,13 +207,13 @@ export default async function Home() {
             <div className="flex items-center gap-4 mt-2">
               <span className={cn(
                 'flex items-center gap-1 text-sm font-mono',
-                hyperliquidData.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
+                totalUnrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
               )}>
                 <i className={cn(
                   'fa-solid',
-                  hyperliquidData.unrealizedPnl >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'
+                  totalUnrealizedPnl >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'
                 )}></i>
-                {hyperliquidData.unrealizedPnl >= 0 ? '+' : ''}${hyperliquidData.unrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {totalUnrealizedPnl >= 0 ? '+' : ''}${totalUnrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
               <span className="text-zinc-500 text-sm">Unrealized PnL</span>
             </div>
@@ -138,7 +223,7 @@ export default async function Home() {
               <i className="fa-solid fa-plug mr-2"></i>
               Active Platforms
             </p>
-            <p className="text-2xl font-bold text-white">1 / 3</p>
+            <p className="text-2xl font-bold text-white">{activePlatforms} / 3</p>
           </div>
         </div>
       </div>
@@ -270,28 +355,30 @@ export default async function Home() {
             <i className="fa-solid fa-boxes-stacked mr-1"></i>
             Total Positions
           </p>
-          <p className="text-xl font-bold font-mono text-white">{hyperliquidData.positions}</p>
+          <p className="text-xl font-bold font-mono text-white">{totalPositions}</p>
         </div>
         <div className="bg-zinc-900/50 rounded-lg border border-zinc-800/50 p-4">
           <p className="text-zinc-500 text-xs mb-1">
             <i className="fa-solid fa-store mr-1"></i>
             Active Markets
           </p>
-          <p className="text-xl font-bold font-mono text-white">1</p>
+          <p className="text-xl font-bold font-mono text-white">{activePlatforms}</p>
         </div>
         <div className="bg-zinc-900/50 rounded-lg border border-zinc-800/50 p-4">
           <p className="text-zinc-500 text-xs mb-1">
             <i className="fa-solid fa-hourglass-half mr-1"></i>
             Coming Soon
           </p>
-          <p className="text-xl font-bold font-mono text-white">2</p>
+          <p className="text-xl font-bold font-mono text-white">{3 - activePlatforms}</p>
         </div>
         <div className="bg-zinc-900/50 rounded-lg border border-zinc-800/50 p-4">
           <p className="text-zinc-500 text-xs mb-1">
             <i className="fa-solid fa-clock-rotate-left mr-1"></i>
             Last Update
           </p>
-          <p className="text-sm font-mono text-zinc-400">Just now</p>
+          <p className="text-sm font-mono text-zinc-400">
+            {lastUpdated ? lastUpdated.toLocaleTimeString() : 'Loading...'}
+          </p>
         </div>
       </div>
     </div>
