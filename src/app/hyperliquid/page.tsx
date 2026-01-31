@@ -1,21 +1,7 @@
 import { supabase } from '@/lib/supabase'
-import { DashboardLayout } from '@/components/dashboard'
 import { HyperliquidHeader } from '@/components/hyperliquid-header'
-import { HyperliquidSnapshot, HyperliquidPosition, ChartDataPoint } from '@/types'
-
-async function getSnapshots() {
-  const { data, error } = await supabase
-    .from('hyperliquid_snapshots')
-    .select('*')
-    .order('timestamp', { ascending: true })
-    .limit(100)
-
-  if (error) {
-    console.error('Error fetching snapshots:', error)
-    return []
-  }
-  return data as HyperliquidSnapshot[]
-}
+import { HyperliquidSnapshot, HyperliquidPosition } from '@/types'
+import { HyperliquidDashboard } from '@/components/hyperliquid-dashboard'
 
 async function getLatestPositions() {
   // Get the latest snapshot id first
@@ -58,27 +44,15 @@ async function getLatestSnapshot() {
 export const revalidate = 60 // Revalidate every 60 seconds
 
 export default async function HyperliquidPage() {
-  const [snapshots, positions, latestSnapshot] = await Promise.all([
-    getSnapshots(),
+  const [positions, latestSnapshot] = await Promise.all([
     getLatestPositions(),
     getLatestSnapshot()
   ])
 
-  // Transform snapshots for the chart
-  const chartData: ChartDataPoint[] = snapshots.map(snapshot => ({
-    date: new Date(snapshot.timestamp).toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
-    }),
-    timestamp: new Date(snapshot.timestamp).getTime(),
-    value: snapshot.account_value,
-    pnl: snapshot.unrealized_pnl
-  }))
-
   // Calculate stats
   const accountValue = latestSnapshot?.account_value ?? 0
   const unrealizedPnl = latestSnapshot?.unrealized_pnl ?? 0
-  const withdrawable = latestSnapshot?.withdrawable ?? accountValue * 0.8 // Estimate if not available
+  const withdrawable = latestSnapshot?.withdrawable ?? accountValue * 0.8
   
   // Calculate from positions
   const longPositions = positions.filter(p => p.size > 0)
@@ -97,19 +71,12 @@ export default async function HyperliquidPage() {
   const marginUsagePercent = accountValue > 0 ? (marginUsed / accountValue) * 100 : 0
   const effectiveLeverage = accountValue > 0 ? totalPositionSize / accountValue : 0
 
-  // Calculate current week PnL
-  const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-  const weekStartSnapshot = snapshots.find(s => new Date(s.timestamp).getTime() >= oneWeekAgo)
-  const weekPnl = weekStartSnapshot 
-    ? accountValue - weekStartSnapshot.account_value 
-    : unrealizedPnl
-
   return (
     <div className="container mx-auto px-4 py-6">
       {/* Sub-header with Advanced Stats Modal */}
       <HyperliquidHeader />
 
-      <DashboardLayout
+      <HyperliquidDashboard
         totalValue={accountValue}
         withdrawable={withdrawable}
         leverage={effectiveLeverage}
@@ -118,11 +85,7 @@ export default async function HyperliquidPage() {
         marginUsage={marginUsagePercent}
         longExposure={longExposure}
         shortExposure={shortExposure}
-        chartData={chartData}
-        currentPnl={weekPnl}
         positions={positions}
-        accentColor="green"
-        title="PnL (Combined)"
       />
 
       {/* Data Info */}

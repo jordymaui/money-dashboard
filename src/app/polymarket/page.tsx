@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { PolymarketPosition, PolymarketClosedPosition, PolymarketActivity } from '@/types'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { PolymarketChart } from '@/components/polymarket-chart'
 
 type TimePeriod = '1D' | '1W' | '1M' | 'ALL'
 type TabType = 'positions' | 'orders' | 'history'
@@ -43,60 +44,6 @@ function formatTimeAgo(timestamp: number): string {
   if (hours > 0) return `${hours}h ago`
   if (minutes > 0) return `${minutes}m ago`
   return 'just now'
-}
-
-// Portfolio Value Chart Component (Area Chart)
-function PortfolioChart({ 
-  data, 
-  height = 120,
-  color = 'rgb(59, 130, 246)'
-}: { 
-  data: { timestamp: number; value: number }[]
-  height?: number
-  color?: string
-}) {
-  if (data.length < 2) {
-    return (
-      <div className="flex items-center justify-center h-full text-zinc-500 text-sm">
-        <span>Calculating history...</span>
-      </div>
-    )
-  }
-
-  const minValue = Math.min(...data.map(d => d.value))
-  const maxValue = Math.max(...data.map(d => d.value))
-  const range = maxValue - minValue || 1
-  
-  const width = 400
-  const padding = 10
-  const chartWidth = width - padding * 2
-  const chartHeight = height - padding * 2
-  
-  // Generate SVG path for the line
-  const points = data.map((d, i) => {
-    const x = padding + (i / (data.length - 1)) * chartWidth
-    const y = padding + chartHeight - ((d.value - minValue) / range) * chartHeight
-    return `${x},${y}`
-  })
-  
-  const linePath = `M${points.join(' L')}`
-  const areaPath = `${linePath} L${padding + chartWidth},${padding + chartHeight} L${padding},${padding + chartHeight} Z`
-
-  // Determine gradient color based on P&L
-  const isPositive = data[data.length - 1]?.value >= 0
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={areaPath} fill="url(#areaGradient)" />
-      <path d={linePath} fill="none" stroke={color} strokeWidth="2" />
-    </svg>
-  )
 }
 
 // Activity/History Row Component
@@ -397,57 +344,6 @@ export default function PolymarketPage() {
   }, 0)
   const todayChangePercent = totalPortfolioValue > 0 ? (todayChange / totalPortfolioValue) * 100 : 0
 
-  // Build P&L history from closed positions
-  const buildPnLHistory = () => {
-    const periodMs = {
-      '1D': 24 * 60 * 60 * 1000,
-      '1W': 7 * 24 * 60 * 60 * 1000,
-      '1M': 30 * 24 * 60 * 60 * 1000,
-      'ALL': Date.now()
-    }
-    
-    const now = Date.now()
-    const cutoff = now - periodMs[timePeriod]
-    
-    // Sort closed positions by timestamp
-    const sorted = [...closedPositions]
-      .filter(p => {
-        const ts = p.timestamp < 1e12 ? p.timestamp * 1000 : p.timestamp
-        return ts >= cutoff
-      })
-      .sort((a, b) => a.timestamp - b.timestamp)
-    
-    if (sorted.length === 0) {
-      return [
-        { timestamp: cutoff, value: 0 },
-        { timestamp: now, value: totalPnL }
-      ]
-    }
-    
-    // Calculate running P&L
-    let runningPnL = 0
-    const history: { timestamp: number; value: number }[] = []
-    
-    for (const pos of sorted) {
-      runningPnL += pos.realized_pnl || 0
-      const ts = pos.timestamp < 1e12 ? pos.timestamp * 1000 : pos.timestamp
-      history.push({
-        timestamp: ts,
-        value: runningPnL
-      })
-    }
-    
-    // Add current total as last point
-    history.push({
-      timestamp: now,
-      value: totalPnL
-    })
-    
-    return history
-  }
-
-  const chartData = buildPnLHistory()
-
   // Filter history by time period
   const getFilteredHistory = () => {
     const now = Date.now()
@@ -544,68 +440,16 @@ export default function PolymarketPage() {
         </div>
       </div>
 
-      {/* Profit/Loss Chart Box */}
-      <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-6 mb-6">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-red-400">❤️</span>
-              <span className="text-zinc-400 text-sm">Profit/Loss</span>
-              <i className="fa-solid fa-circle-info text-zinc-600 text-xs cursor-help" title="Realized + Unrealized P&L"></i>
-            </div>
-            <div className={cn(
-              'text-4xl font-bold tracking-tight',
-              totalPnL >= 0 ? 'text-green-400' : 'text-red-400'
-            )}>
-              {totalPnL >= 0 ? '+' : '-'}{formatCurrency(Math.abs(totalPnL))}
-            </div>
-            <div className="text-zinc-500 text-sm mt-1 flex items-center gap-3">
-              <span>All-Time</span>
-              <span className="text-zinc-600">|</span>
-              <span className={realizedPnL >= 0 ? 'text-green-500/70' : 'text-red-500/70'}>
-                Realized: {realizedPnL >= 0 ? '+' : ''}{formatCurrency(realizedPnL)}
-              </span>
-              <span className={unrealizedPnL >= 0 ? 'text-green-500/70' : 'text-red-500/70'}>
-                Unrealized: {unrealizedPnL >= 0 ? '+' : ''}{formatCurrency(unrealizedPnL)}
-              </span>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            {/* Time Period Toggles */}
-            <div className="flex bg-zinc-800 rounded-lg p-1">
-              {(['1D', '1W', '1M', 'ALL'] as TimePeriod[]).map((period) => (
-                <button
-                  key={period}
-                  onClick={() => setTimePeriod(period)}
-                  className={cn(
-                    'px-3 py-1 text-sm font-medium rounded transition-colors',
-                    timePeriod === period
-                      ? 'bg-zinc-700 text-white'
-                      : 'text-zinc-500 hover:text-zinc-300'
-                  )}
-                >
-                  {period}
-                </button>
-              ))}
-            </div>
-            
-            {/* Polymarket Logo */}
-            <div className="flex items-center gap-1 text-zinc-500 ml-4">
-              <i className="fa-solid fa-chart-line"></i>
-              <span className="text-sm font-medium">Polymarket</span>
-            </div>
-          </div>
-        </div>
-        
-        {/* Chart */}
-        <div className="h-32">
-          <PortfolioChart 
-            data={chartData} 
-            height={120} 
-            color={totalPnL >= 0 ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'}
-          />
-        </div>
+      {/* Interactive P&L Chart */}
+      <div className="mb-6">
+        <PolymarketChart
+          closedPositions={closedPositions}
+          totalPnL={totalPnL}
+          realizedPnL={realizedPnL}
+          unrealizedPnL={unrealizedPnL}
+          timePeriod={timePeriod}
+          onTimePeriodChange={setTimePeriod}
+        />
       </div>
 
       {/* Tabs Section */}
