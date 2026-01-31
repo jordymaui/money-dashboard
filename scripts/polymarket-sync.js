@@ -2,26 +2,28 @@
 
 /**
  * Polymarket Sync Script
- * Fetches positions and trades from Polymarket API and syncs to Supabase
+ * Fetches positions, closed positions, trades, and activity from Polymarket API
+ * Syncs everything to Supabase for accurate P&L tracking
  */
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://ermlxtokxwhgfbcakibo.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || 'sb_secret_9yjvpKbspZ5x07a7CPGcGQ_3Q7QWzMk';
 const WALLET = '0xDa50B2Ca697Ee1A325d3c6f965B69Eb9EC632A41';
 
-const POSITIONS_URL = `https://data-api.polymarket.com/positions?user=${WALLET}`;
-const TRADES_URL = `https://data-api.polymarket.com/trades?user=${WALLET}`;
+const API_BASE = 'https://data-api.polymarket.com';
+const POSITIONS_URL = `${API_BASE}/positions?user=${WALLET}`;
+const CLOSED_POSITIONS_URL = `${API_BASE}/closed-positions?user=${WALLET}`;
+const TRADES_URL = `${API_BASE}/trades?user=${WALLET}`;
+const ACTIVITY_URL = `${API_BASE}/activity?user=${WALLET}`;
 
-async function fetchPositions() {
-  const response = await fetch(POSITIONS_URL);
-  if (!response.ok) throw new Error(`Failed to fetch positions: ${response.status}`);
-  return response.json();
-}
-
-async function fetchTrades() {
-  const response = await fetch(TRADES_URL);
-  if (!response.ok) throw new Error(`Failed to fetch trades: ${response.status}`);
-  return response.json();
+// Fetch helpers
+async function fetchJson(url, name) {
+  console.log(`Fetching ${name}...`);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Failed to fetch ${name}: ${response.status}`);
+  const data = await response.json();
+  console.log(`  → Got ${data.length} ${name}`);
+  return data;
 }
 
 async function supabaseRequest(endpoint, method, body) {
@@ -51,6 +53,7 @@ async function supabaseRequest(endpoint, method, body) {
   return text ? JSON.parse(text) : null;
 }
 
+// Transform functions
 function transformPosition(pos) {
   return {
     asset: pos.asset,
@@ -75,6 +78,26 @@ function transformPosition(pos) {
   };
 }
 
+function transformClosedPosition(pos) {
+  return {
+    asset: pos.asset,
+    condition_id: pos.conditionId,
+    title: pos.title,
+    slug: pos.slug,
+    outcome: pos.outcome,
+    avg_price: pos.avgPrice,
+    total_bought: pos.totalBought,
+    realized_pnl: pos.realizedPnl,
+    cur_price: pos.curPrice,
+    icon: pos.icon,
+    end_date: pos.endDate,
+    event_slug: pos.eventSlug,
+    timestamp: pos.timestamp,
+    raw_data: pos,
+    updated_at: new Date().toISOString()
+  };
+}
+
 function transformTrade(trade) {
   return {
     asset: trade.asset,
@@ -84,6 +107,7 @@ function transformTrade(trade) {
     outcome: trade.outcome,
     size: trade.size,
     price: trade.price,
+    usdc_size: trade.usdcSize,
     timestamp: trade.timestamp,
     transaction_hash: trade.transactionHash,
     event_slug: trade.eventSlug,
@@ -92,42 +116,84 @@ function transformTrade(trade) {
   };
 }
 
+function transformActivity(activity) {
+  return {
+    asset: activity.asset,
+    condition_id: activity.conditionId,
+    transaction_hash: activity.transactionHash,
+    type: activity.type,
+    side: activity.side,
+    size: activity.size,
+    usdc_size: activity.usdcSize,
+    price: activity.price,
+    outcome: activity.outcome,
+    outcome_index: activity.outcomeIndex,
+    title: activity.title,
+    slug: activity.slug,
+    icon: activity.icon,
+    event_slug: activity.eventSlug,
+    timestamp: activity.timestamp,
+    raw_data: activity
+  };
+}
+
+// Sync functions
 async function syncPositions(positions) {
-  if (positions.length === 0) {
-    console.log('No positions to sync');
-    return 0;
-  }
+  if (positions.length === 0) return 0;
 
   const transformed = positions.map(transformPosition);
-  
-  // Upsert positions using asset as the unique key
-  // First, delete old positions not in current list
-  const currentAssets = positions.map(p => p.asset);
-  
-  // Insert/update current positions one by one (simpler approach)
   let upserted = 0;
+  
   for (const pos of transformed) {
     try {
-      // Check if exists
       const existing = await supabaseRequest(
         `/rest/v1/polymarket_positions?asset=eq.${encodeURIComponent(pos.asset)}&select=id`,
         'GET'
       );
       
       if (existing && existing.length > 0) {
-        // Update
         await supabaseRequest(
           `/rest/v1/polymarket_positions?asset=eq.${encodeURIComponent(pos.asset)}`,
           'PATCH',
           pos
         );
       } else {
-        // Insert
         await supabaseRequest('/rest/v1/polymarket_positions', 'POST', pos);
       }
       upserted++;
     } catch (err) {
-      console.error(`Error upserting position ${pos.title}:`, err.message);
+      console.error(`  Error upserting position ${pos.title?.slice(0, 40)}:`, err.message);
+    }
+  }
+  
+  return upserted;
+}
+
+async function syncClosedPositions(positions) {
+  if (positions.length === 0) return 0;
+
+  const transformed = positions.map(transformClosedPosition);
+  let upserted = 0;
+  
+  for (const pos of transformed) {
+    try {
+      const existing = await supabaseRequest(
+        `/rest/v1/polymarket_closed_positions?asset=eq.${encodeURIComponent(pos.asset)}&select=id`,
+        'GET'
+      );
+      
+      if (existing && existing.length > 0) {
+        await supabaseRequest(
+          `/rest/v1/polymarket_closed_positions?asset=eq.${encodeURIComponent(pos.asset)}`,
+          'PATCH',
+          pos
+        );
+      } else {
+        await supabaseRequest('/rest/v1/polymarket_closed_positions', 'POST', pos);
+      }
+      upserted++;
+    } catch (err) {
+      console.error(`  Error upserting closed position ${pos.title?.slice(0, 40)}:`, err.message);
     }
   }
   
@@ -135,29 +201,20 @@ async function syncPositions(positions) {
 }
 
 async function syncTrades(trades) {
-  if (trades.length === 0) {
-    console.log('No trades to sync');
-    return 0;
-  }
+  if (trades.length === 0) return 0;
 
-  // Get existing transaction hashes
   const existing = await supabaseRequest(
     '/rest/v1/polymarket_trades?select=transaction_hash',
     'GET'
   );
   const existingHashes = new Set((existing || []).map(t => t.transaction_hash));
   
-  // Filter to new trades only
   const newTrades = trades
     .filter(t => !existingHashes.has(t.transactionHash))
     .map(transformTrade);
   
-  if (newTrades.length === 0) {
-    console.log('No new trades to insert');
-    return 0;
-  }
+  if (newTrades.length === 0) return 0;
   
-  // Insert in batches
   const BATCH_SIZE = 100;
   let inserted = 0;
   
@@ -170,45 +227,82 @@ async function syncTrades(trades) {
   return inserted;
 }
 
+async function syncActivity(activities) {
+  if (activities.length === 0) return 0;
+
+  const existing = await supabaseRequest(
+    '/rest/v1/polymarket_activity?select=transaction_hash',
+    'GET'
+  );
+  const existingHashes = new Set((existing || []).map(t => t.transaction_hash));
+  
+  const newActivities = activities
+    .filter(a => !existingHashes.has(a.transactionHash))
+    .map(transformActivity);
+  
+  if (newActivities.length === 0) return 0;
+  
+  const BATCH_SIZE = 100;
+  let inserted = 0;
+  
+  for (let i = 0; i < newActivities.length; i += BATCH_SIZE) {
+    const batch = newActivities.slice(i, i + BATCH_SIZE);
+    await supabaseRequest('/rest/v1/polymarket_activity', 'POST', batch);
+    inserted += batch.length;
+  }
+  
+  return inserted;
+}
+
 async function main() {
-  console.log(`[${new Date().toISOString()}] Starting Polymarket sync...`);
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`[${new Date().toISOString()}] Polymarket Sync`);
   console.log(`Wallet: ${WALLET}`);
+  console.log(`${'='.repeat(60)}\n`);
   
   try {
-    // Fetch data from Polymarket API
-    console.log('\nFetching positions...');
-    const positions = await fetchPositions();
-    console.log(`Fetched ${positions.length} positions`);
+    // Fetch all data from Polymarket API
+    const [positions, closedPositions, trades, activity] = await Promise.all([
+      fetchJson(POSITIONS_URL, 'positions'),
+      fetchJson(CLOSED_POSITIONS_URL, 'closed-positions'),
+      fetchJson(TRADES_URL, 'trades'),
+      fetchJson(ACTIVITY_URL, 'activity')
+    ]);
     
-    console.log('\nFetching trades...');
-    const trades = await fetchTrades();
-    console.log(`Fetched ${trades.length} trades`);
-    
-    // Calculate some stats
-    const totalValue = positions.reduce((sum, p) => sum + (p.currentValue || 0), 0);
-    const totalPnl = positions.reduce((sum, p) => sum + (p.cashPnl || 0), 0);
+    // Calculate stats
     const openPositions = positions.filter(p => !p.redeemable && p.currentValue > 0);
-    const redeemablePositions = positions.filter(p => p.redeemable);
+    const openValue = openPositions.reduce((sum, p) => sum + (p.currentValue || 0), 0);
+    const unrealizedPnl = positions.reduce((sum, p) => sum + (p.cashPnl || 0), 0);
+    const realizedPnl = closedPositions.reduce((sum, p) => sum + (p.realizedPnl || 0), 0);
+    const totalPnl = realizedPnl + unrealizedPnl;
     
     console.log('\n--- Portfolio Stats ---');
-    console.log(`Total Current Value: $${totalValue.toFixed(2)}`);
-    console.log(`Total PnL: $${totalPnl.toFixed(2)}`);
-    console.log(`Open Positions: ${openPositions.length}`);
-    console.log(`Redeemable (resolved): ${redeemablePositions.length}`);
+    console.log(`Open Positions: ${openPositions.length} ($${openValue.toFixed(2)})`);
+    console.log(`Closed Positions: ${closedPositions.length}`);
+    console.log(`Realized P&L: $${realizedPnl.toFixed(2)}`);
+    console.log(`Unrealized P&L: $${unrealizedPnl.toFixed(2)}`);
+    console.log(`Total P&L: $${totalPnl.toFixed(2)}`);
     
     // Sync to Supabase
     console.log('\n--- Syncing to Supabase ---');
     
     const positionsUpserted = await syncPositions(positions);
-    console.log(`✓ Upserted ${positionsUpserted} positions`);
+    console.log(`✓ Positions: ${positionsUpserted} upserted`);
+    
+    const closedUpserted = await syncClosedPositions(closedPositions);
+    console.log(`✓ Closed positions: ${closedUpserted} upserted`);
     
     const tradesInserted = await syncTrades(trades);
-    console.log(`✓ Inserted ${tradesInserted} new trades`);
+    console.log(`✓ Trades: ${tradesInserted} new inserted`);
+    
+    const activityInserted = await syncActivity(activity);
+    console.log(`✓ Activity: ${activityInserted} new inserted`);
     
     console.log(`\n[${new Date().toISOString()}] Sync complete!`);
+    console.log(`${'='.repeat(60)}\n`);
     
   } catch (err) {
-    console.error('Sync failed:', err);
+    console.error('\n❌ Sync failed:', err);
     process.exit(1);
   }
 }

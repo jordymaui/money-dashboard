@@ -76,10 +76,52 @@ export interface PolymarketTrade {
   outcome: string | null
   size: number
   price: number
+  usdc_size: number | null
   timestamp: number
   transaction_hash: string
   event_slug: string | null
   condition_id: string | null
+  raw_data: Record<string, unknown> | null
+  created_at: string
+}
+
+export interface PolymarketClosedPosition {
+  id: number
+  asset: string
+  condition_id: string | null
+  title: string | null
+  slug: string | null
+  outcome: string | null
+  avg_price: number
+  total_bought: number
+  realized_pnl: number
+  cur_price: number
+  icon: string | null
+  end_date: string | null
+  event_slug: string | null
+  timestamp: number
+  raw_data: Record<string, unknown> | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PolymarketActivity {
+  id: number
+  asset: string
+  condition_id: string | null
+  transaction_hash: string
+  type: string | null
+  side: string | null
+  size: number
+  usdc_size: number
+  price: number
+  outcome: string | null
+  outcome_index: number | null
+  title: string | null
+  slug: string | null
+  icon: string | null
+  event_slug: string | null
+  timestamp: number
   raw_data: Record<string, unknown> | null
   created_at: string
 }
