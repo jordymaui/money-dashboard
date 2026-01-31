@@ -212,8 +212,72 @@ function ClosedPositionRow({ position }: { position: PolymarketClosedPosition })
   )
 }
 
+// Mobile Position Accordion
+function PositionAccordion({ position, isOpen, onToggle }: { 
+  position: PolymarketPosition
+  isOpen: boolean
+  onToggle: () => void 
+}) {
+  const isProfitable = (position.cash_pnl || 0) >= 0
+  
+  return (
+    <div className="border-b border-zinc-800/50">
+      <button
+        onClick={onToggle}
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-800/30 transition-colors"
+      >
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          {position.icon ? (
+            <img src={position.icon} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-zinc-700 flex-shrink-0" />
+          )}
+          <div className="text-left min-w-0 flex-1">
+            <div className="text-white text-sm font-medium truncate pr-2">{position.title || 'Unknown'}</div>
+            <div className="flex items-center gap-2 text-xs">
+              <span className={cn('px-1.5 py-0.5 rounded', position.outcome?.toLowerCase() === 'yes' ? 'bg-blue-500/20 text-blue-400' : 'bg-red-500/20 text-red-400')}>
+                {position.outcome || 'N/A'}
+              </span>
+              <span className="text-zinc-500">{formatCurrency(position.current_value || 0)}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className={cn('font-mono text-sm', isProfitable ? 'text-green-400' : 'text-red-400')}>
+            {isProfitable ? '+' : ''}{formatCurrency(position.cash_pnl || 0)}
+          </span>
+          <i className={cn('fa-solid fa-chevron-down text-zinc-500 transition-transform', isOpen && 'rotate-180')}></i>
+        </div>
+      </button>
+      {isOpen && (
+        <div className="px-4 pb-4 pt-1 bg-zinc-800/20">
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="bg-zinc-800/30 rounded-lg p-2.5">
+              <div className="text-zinc-500 text-xs mb-1">Shares</div>
+              <div className="font-mono text-white">{position.size?.toLocaleString(undefined, { maximumFractionDigits: 1 })}</div>
+            </div>
+            <div className="bg-zinc-800/30 rounded-lg p-2.5">
+              <div className="text-zinc-500 text-xs mb-1">Avg Price</div>
+              <div className="font-mono text-white">{((position.avg_price || 0) * 100).toFixed(0)}¢</div>
+            </div>
+            <div className="bg-zinc-800/30 rounded-lg p-2.5">
+              <div className="text-zinc-500 text-xs mb-1">Current Price</div>
+              <div className="font-mono text-white">{((position.cur_price || 0) * 100).toFixed(0)}¢</div>
+            </div>
+            <div className="bg-zinc-800/30 rounded-lg p-2.5">
+              <div className="text-zinc-500 text-xs mb-1">Value</div>
+              <div className="font-mono text-white">{formatCurrency(position.current_value || 0)}</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Positions Table Component
 function PositionsTable({ positions }: { positions: PolymarketPosition[] }) {
+  const [openId, setOpenId] = useState<number | null>(null)
   const openPositions = positions.filter(p => !p.redeemable && p.current_value > 0)
   
   if (openPositions.length === 0) {
@@ -226,72 +290,62 @@ function PositionsTable({ positions }: { positions: PolymarketPosition[] }) {
   }
   
   return (
-    <table className="w-full">
-      <thead>
-        <tr className="border-b border-zinc-800/50 text-zinc-500 text-xs uppercase">
-          <th className="px-4 py-3 text-left">Market</th>
-          <th className="px-4 py-3 text-left">Outcome</th>
-          <th className="px-4 py-3 text-right">Shares</th>
-          <th className="px-4 py-3 text-right">Avg Price</th>
-          <th className="px-4 py-3 text-right">Current</th>
-          <th className="px-4 py-3 text-right">Value</th>
-          <th className="px-4 py-3 text-right">PnL</th>
-        </tr>
-      </thead>
-      <tbody>
+    <>
+      {/* Mobile Accordion */}
+      <div className="md:hidden">
         {openPositions.map((pos) => (
-          <tr key={pos.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
-            <td className="px-4 py-3">
-              <div className="flex items-center gap-2">
-                {pos.icon && (
-                  <img 
-                    src={pos.icon} 
-                    alt="" 
-                    className="w-6 h-6 rounded-full object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                  />
-                )}
-                <span className="text-white text-sm max-w-xs truncate">
-                  {pos.title || 'Unknown Market'}
-                </span>
-              </div>
-            </td>
-            <td className="px-4 py-3">
-              <span className={cn(
-                'px-2 py-0.5 rounded text-xs font-medium',
-                pos.outcome?.toLowerCase() === 'yes' 
-                  ? 'bg-blue-500/20 text-blue-400'
-                  : pos.outcome?.toLowerCase() === 'no'
-                  ? 'bg-red-500/20 text-red-400'
-                  : 'bg-zinc-700 text-zinc-300'
-              )}>
-                {pos.outcome || 'N/A'}
-              </span>
-            </td>
-            <td className="px-4 py-3 text-right font-mono text-white">
-              {pos.size?.toLocaleString(undefined, { maximumFractionDigits: 1 })}
-            </td>
-            <td className="px-4 py-3 text-right font-mono text-zinc-400">
-              {((pos.avg_price || 0) * 100).toFixed(0)}¢
-            </td>
-            <td className="px-4 py-3 text-right font-mono text-white">
-              {((pos.cur_price || 0) * 100).toFixed(0)}¢
-            </td>
-            <td className="px-4 py-3 text-right font-mono text-white">
-              {formatCurrency(pos.current_value || 0)}
-            </td>
-            <td className="px-4 py-3 text-right">
-              <span className={cn(
-                'font-mono',
-                (pos.cash_pnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'
-              )}>
-                {(pos.cash_pnl || 0) >= 0 ? '+' : ''}{formatCurrency(pos.cash_pnl || 0)}
-              </span>
-            </td>
-          </tr>
+          <PositionAccordion
+            key={pos.id}
+            position={pos}
+            isOpen={openId === pos.id}
+            onToggle={() => setOpenId(openId === pos.id ? null : pos.id)}
+          />
         ))}
-      </tbody>
-    </table>
+      </div>
+      
+      {/* Desktop Table */}
+      <table className="hidden md:table w-full">
+        <thead>
+          <tr className="border-b border-zinc-800/50 text-zinc-500 text-xs uppercase">
+            <th className="px-4 py-3 text-left">Market</th>
+            <th className="px-4 py-3 text-left">Outcome</th>
+            <th className="px-4 py-3 text-right">Shares</th>
+            <th className="px-4 py-3 text-right">Avg Price</th>
+            <th className="px-4 py-3 text-right">Current</th>
+            <th className="px-4 py-3 text-right">Value</th>
+            <th className="px-4 py-3 text-right">PnL</th>
+          </tr>
+        </thead>
+        <tbody>
+          {openPositions.map((pos) => (
+            <tr key={pos.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-2">
+                  {pos.icon && (
+                    <img src={pos.icon} alt="" className="w-6 h-6 rounded-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                  )}
+                  <span className="text-white text-sm max-w-xs truncate">{pos.title || 'Unknown Market'}</span>
+                </div>
+              </td>
+              <td className="px-4 py-3">
+                <span className={cn('px-2 py-0.5 rounded text-xs font-medium', pos.outcome?.toLowerCase() === 'yes' ? 'bg-blue-500/20 text-blue-400' : pos.outcome?.toLowerCase() === 'no' ? 'bg-red-500/20 text-red-400' : 'bg-zinc-700 text-zinc-300')}>
+                  {pos.outcome || 'N/A'}
+                </span>
+              </td>
+              <td className="px-4 py-3 text-right font-mono text-white">{pos.size?.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
+              <td className="px-4 py-3 text-right font-mono text-zinc-400">{((pos.avg_price || 0) * 100).toFixed(0)}¢</td>
+              <td className="px-4 py-3 text-right font-mono text-white">{((pos.cur_price || 0) * 100).toFixed(0)}¢</td>
+              <td className="px-4 py-3 text-right font-mono text-white">{formatCurrency(pos.current_value || 0)}</td>
+              <td className="px-4 py-3 text-right">
+                <span className={cn('font-mono', (pos.cash_pnl || 0) >= 0 ? 'text-green-400' : 'text-red-400')}>
+                  {(pos.cash_pnl || 0) >= 0 ? '+' : ''}{formatCurrency(pos.cash_pnl || 0)}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
   )
 }
 
@@ -512,14 +566,14 @@ export default function PolymarketPage() {
       {/* Tabs Section */}
       <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 overflow-hidden">
         {/* Tab Headers */}
-        <div className="flex border-b border-zinc-800/50">
+        <div className="flex border-b border-zinc-800/50 overflow-x-auto">
           <button
             onClick={() => setActiveTab('positions')}
             className={cn(
-              'px-6 py-4 text-sm font-medium border-b-2 -mb-[1px] transition-colors',
+              'px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium border-b-2 -mb-[1px] transition-colors whitespace-nowrap',
               activeTab === 'positions'
                 ? 'text-white border-white'
-                : 'text-zinc-500 border-transparent hover:text-zinc-300'
+                : 'text-zinc-500 border-transparent'
             )}
           >
             Positions
@@ -527,21 +581,21 @@ export default function PolymarketPage() {
           <button
             onClick={() => setActiveTab('orders')}
             className={cn(
-              'px-6 py-4 text-sm font-medium border-b-2 -mb-[1px] transition-colors',
+              'px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium border-b-2 -mb-[1px] transition-colors whitespace-nowrap',
               activeTab === 'orders'
                 ? 'text-white border-white'
-                : 'text-zinc-500 border-transparent hover:text-zinc-300'
+                : 'text-zinc-500 border-transparent'
             )}
           >
-            Open orders
+            Orders
           </button>
           <button
             onClick={() => setActiveTab('history')}
             className={cn(
-              'px-6 py-4 text-sm font-medium border-b-2 -mb-[1px] transition-colors',
+              'px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium border-b-2 -mb-[1px] transition-colors whitespace-nowrap',
               activeTab === 'history'
                 ? 'text-white border-white'
-                : 'text-zinc-500 border-transparent hover:text-zinc-300'
+                : 'text-zinc-500 border-transparent'
             )}
           >
             History
@@ -564,42 +618,74 @@ export default function PolymarketPage() {
           
           {activeTab === 'history' && (
             <>
-              {/* History Controls */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/50">
+              {/* History Controls - Desktop */}
+              <div className="hidden md:flex items-center justify-between px-4 py-3 border-b border-zinc-800/50">
                 <div className="flex items-center gap-2">
                   <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search"
-                      className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 pl-9 text-sm text-white placeholder-zinc-500 w-64 focus:outline-none focus:border-zinc-600"
-                    />
+                    <input type="text" placeholder="Search" className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 pl-9 text-sm text-white placeholder-zinc-500 w-64 focus:outline-none focus:border-zinc-600" />
                     <i className="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm"></i>
                   </div>
                 </div>
-                
                 <div className="flex items-center gap-2">
-                  <select
-                    value={historyView}
-                    onChange={(e) => setHistoryView(e.target.value as typeof historyView)}
-                    className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none"
-                  >
+                  <select value={historyView} onChange={(e) => setHistoryView(e.target.value as typeof historyView)} className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none">
                     <option value="all">All Activity</option>
                     <option value="activity">Trades Only</option>
                     <option value="closed">Closed Positions</option>
                   </select>
-                  <button className="flex items-center gap-2 px-3 py-2 bg-zinc-800 rounded-lg text-sm text-zinc-300 hover:bg-zinc-700 transition-colors">
-                    <i className="fa-solid fa-sort"></i>
-                    Newest
-                  </button>
-                  <button className="flex items-center gap-2 px-3 py-2 bg-zinc-800 rounded-lg text-sm text-zinc-300 hover:bg-zinc-700 transition-colors">
-                    <i className="fa-solid fa-download"></i>
-                    Export
-                  </button>
                 </div>
               </div>
               
-              {/* History Table */}
-              <table className="w-full">
+              {/* History Controls - Mobile */}
+              <div className="md:hidden px-3 py-2 border-b border-zinc-800/50">
+                <select value={historyView} onChange={(e) => setHistoryView(e.target.value as typeof historyView)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300">
+                  <option value="all">All Activity</option>
+                  <option value="activity">Trades Only</option>
+                  <option value="closed">Closed Positions</option>
+                </select>
+              </div>
+              
+              {/* History - Mobile List */}
+              <div className="md:hidden">
+                {getFilteredHistory().length === 0 ? (
+                  <div className="px-4 py-12 text-center text-zinc-500">
+                    <i className="fa-solid fa-inbox text-3xl mb-3 opacity-30 block"></i>
+                    No history for this period
+                  </div>
+                ) : (
+                  getFilteredHistory().slice(0, 50).map((item, idx) => {
+                    const isActivity = item.type === 'activity'
+                    const data = item.data as any
+                    const isBuy = isActivity ? data.side === 'BUY' : false
+                    const isWin = !isActivity ? data.realized_pnl > 0 : false
+                    const value = isActivity ? (data.usdc_size || data.size * data.price) : data.realized_pnl
+                    
+                    return (
+                      <div key={`${item.type}-${data.id}-${idx}`} className="border-b border-zinc-800/50 px-4 py-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <span className={cn(
+                              'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm',
+                              isActivity ? (isBuy ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400') : (isWin ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400')
+                            )}>
+                              {isActivity ? (isBuy ? '+' : '−') : (isWin ? '✓' : '×')}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-white text-sm truncate">{data.title || 'Unknown'}</div>
+                              <div className="text-zinc-500 text-xs">{formatTimeAgo(data.timestamp)}</div>
+                            </div>
+                          </div>
+                          <span className={cn('font-mono text-sm flex-shrink-0', value >= 0 ? 'text-green-400' : 'text-red-400')}>
+                            {value >= 0 ? '+' : ''}{formatCurrency(value)}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+              
+              {/* History Table - Desktop */}
+              <table className="hidden md:table w-full">
                 <thead>
                   <tr className="border-b border-zinc-800/50 text-zinc-500 text-xs uppercase">
                     <th className="px-4 py-3 text-left">Activity</th>
@@ -630,8 +716,8 @@ export default function PolymarketPage() {
         </div>
       </div>
 
-      {/* Stats Footer */}
-      <div className="mt-4 flex items-center justify-between text-xs text-zinc-600">
+      {/* Stats Footer - Desktop only */}
+      <div className="hidden md:flex mt-4 items-center justify-between text-xs text-zinc-600">
         <div className="flex items-center gap-4">
           <span>
             <i className="fa-solid fa-chart-pie mr-1 text-blue-400"></i>
