@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   CartesianGrid
 } from 'recharts'
-import { supabase } from '@/lib/supabase'
+import { fetchPortfolioHistory, PortfolioPeriod } from '@/lib/hyperliquid'
 import { cn } from '@/lib/utils'
 
 type TimePeriod = '1D' | '1W' | '1M' | 'ALL'
@@ -40,11 +40,20 @@ function formatCompactCurrency(value: number): string {
   if (value >= 10000) {
     return `$${(value / 1000).toFixed(1)}K`
   }
-  // For values under 10K, show actual value
   return `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
 }
 
-// Custom tooltip component with proper value display
+// Map UI time period to API period
+function mapTimePeriodToApi(period: TimePeriod): PortfolioPeriod {
+  switch (period) {
+    case '1D': return 'day'
+    case '1W': return 'week'
+    case '1M': return 'month'
+    case 'ALL': return 'allTime'
+  }
+}
+
+// Custom tooltip component
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length > 0) {
     const dataPoint = payload[0]?.payload
@@ -66,7 +75,7 @@ const CustomTooltip = ({ active, payload }: any) => {
 }
 
 export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProps) {
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>('1W')
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('1D')
   const [chartData, setChartData] = useState<ChartDataPoint[]>([])
   const [loading, setLoading] = useState(true)
   const [currentValue, setCurrentValue] = useState(0)
@@ -94,72 +103,41 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
   const fetchData = useCallback(async () => {
     setLoading(true)
     
-    // Calculate cutoff date based on time period
-    const now = new Date()
-    let cutoffDate: Date
-    
-    switch (timePeriod) {
-      case '1D':
-        cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-        break
-      case '1W':
-        cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        break
-      case '1M':
-        cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-        break
-      case 'ALL':
-      default:
-        cutoffDate = new Date(0) // Beginning of time
-    }
-
     try {
-      let query = supabase
-        .from('hyperliquid_snapshots')
-        .select('timestamp, account_value')
-        .order('timestamp', { ascending: true })
+      const portfolioData = await fetchPortfolioHistory()
+      const apiPeriod = mapTimePeriodToApi(timePeriod)
+      const periodData = portfolioData.get(apiPeriod)
       
-      if (timePeriod !== 'ALL') {
-        query = query.gte('timestamp', cutoffDate.toISOString())
-      }
-      
-      const { data, error } = await query
-
-      if (error) {
-        console.error('Error fetching snapshots:', error)
-        return
-      }
-
-      if (data && data.length > 0) {
+      if (periodData && periodData.accountValueHistory.length > 0) {
+        const history = periodData.accountValueHistory
+        
         // Check actual data range to decide label format
-        const firstTimestamp = new Date(data[0].timestamp).getTime()
-        const lastTimestamp = new Date(data[data.length - 1].timestamp).getTime()
+        const firstTimestamp = history[0][0]
+        const lastTimestamp = history[history.length - 1][0]
         const dataRangeMs = lastTimestamp - firstTimestamp
         const ONE_DAY = 24 * 60 * 60 * 1000
         const ONE_WEEK = 7 * ONE_DAY
         
-        // Transform data for chart with smart labels based on actual data range
-        const transformed: ChartDataPoint[] = data.map(snapshot => {
-          const date = new Date(snapshot.timestamp)
+        // Transform API data for chart
+        const transformed: ChartDataPoint[] = history.map(([timestamp, valueStr]) => {
+          const date = new Date(timestamp)
+          const value = parseFloat(valueStr)
           
-          // Format X-axis label based on actual data range (not just selected period)
+          // Format X-axis label based on actual data range
           let dateLabel: string
           if (dataRangeMs <= ONE_DAY) {
-            // Data spans <= 1 day: show time only (HH:MM)
             dateLabel = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
           } else if (dataRangeMs <= ONE_WEEK) {
-            // Data spans <= 1 week: show day + time (Mon 14:30)
             dateLabel = date.toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + 
                         date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
           } else {
-            // Data spans > 1 week: show date (Jan 31)
             dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
           }
           
           return {
             date: dateLabel,
-            timestamp: date.getTime(),
-            value: snapshot.account_value,
+            timestamp,
+            value,
             formattedDate: date.toLocaleDateString('en-US', {
               weekday: 'short',
               month: 'short',
@@ -171,18 +149,33 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
           }
         })
 
-        setChartData(transformed)
+        // Filter out zero values at the start (no activity)
+        const filteredData = transformed.filter((d, i, arr) => {
+          // Keep if value > 0 OR if any value after this is > 0
+          if (d.value > 0) return true
+          for (let j = i + 1; j < arr.length; j++) {
+            if (arr[j].value > 0) return false // Skip leading zeros
+          }
+          return false
+        })
         
-        // Calculate period stats - first value vs last value in the period
-        const firstValue = data[0].account_value
-        const latestValue = data[data.length - 1].account_value
-        const change = latestValue - firstValue
-        const changePercent = firstValue > 0 ? (change / firstValue) * 100 : 0
+        // Actually, let's find first non-zero and take from there
+        const firstNonZeroIdx = transformed.findIndex(d => d.value > 0)
+        const cleanData = firstNonZeroIdx >= 0 ? transformed.slice(firstNonZeroIdx) : []
+
+        setChartData(cleanData)
         
-        setCurrentValue(latestValue)
-        setPeriodStartValue(firstValue)
-        setPeriodChange(change)
-        setPeriodChangePercent(changePercent)
+        if (cleanData.length > 0) {
+          const firstValue = cleanData[0].value
+          const latestValue = cleanData[cleanData.length - 1].value
+          const change = latestValue - firstValue
+          const changePercent = firstValue > 0 ? (change / firstValue) * 100 : 0
+          
+          setCurrentValue(latestValue)
+          setPeriodStartValue(firstValue)
+          setPeriodChange(change)
+          setPeriodChangePercent(changePercent)
+        }
       } else {
         setChartData([])
         setCurrentValue(0)
@@ -191,7 +184,7 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
         setPeriodChangePercent(0)
       }
     } catch (err) {
-      console.error('Error:', err)
+      console.error('Error fetching portfolio data:', err)
     } finally {
       setLoading(false)
     }
@@ -203,7 +196,6 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
 
   const isProfitable = periodChange >= 0
 
-  // Get period label for display
   const getPeriodLabel = () => {
     switch (timePeriod) {
       case '1D': return '24h'
@@ -235,7 +227,7 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
           ))}
         </div>
 
-        {/* Stats Display - Updates based on time period */}
+        {/* Stats Display */}
         <div className="flex items-center gap-6">
           <div className="text-right">
             <div className="text-xs text-zinc-500">
@@ -348,6 +340,12 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
             </div>
           )}
         </div>
+      </div>
+
+      {/* Footer */}
+      <div className="px-4 py-2 text-xs text-zinc-600 text-center border-t border-zinc-800/50">
+        <i className="fa-solid fa-bolt mr-1"></i>
+        Live data from Hyperliquid API
       </div>
     </div>
   )

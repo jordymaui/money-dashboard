@@ -151,6 +151,40 @@ export async function fetchAllMids(): Promise<Record<string, string>> {
   }
 }
 
+// Portfolio history types
+export interface PortfolioHistoryData {
+  accountValueHistory: [number, string][]  // [timestamp, value]
+  pnlHistory: [number, string][]  // [timestamp, pnl]
+  vlm: string
+}
+
+export type PortfolioPeriod = 'day' | 'week' | 'month' | 'allTime' | 'perpDay' | 'perpWeek' | 'perpMonth' | 'perpAllTime'
+
+// Fetch portfolio history (account value over time)
+export async function fetchPortfolioHistory(): Promise<Map<PortfolioPeriod, PortfolioHistoryData>> {
+  try {
+    const response = await fetch(HYPERLIQUID_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'portfolio',
+        user: USER_ADDRESS
+      })
+    })
+
+    if (!response.ok) {
+      console.error('Hyperliquid API error:', response.status)
+      return new Map()
+    }
+
+    const data: [PortfolioPeriod, PortfolioHistoryData][] = await response.json()
+    return new Map(data)
+  } catch (error) {
+    console.error('Error fetching portfolio history:', error)
+    return new Map()
+  }
+}
+
 // Transform Hyperliquid positions to our format
 export function transformPositions(state: HyperliquidState, mids: Record<string, string>) {
   return state.assetPositions
