@@ -55,8 +55,12 @@ export function Nav() {
 
           {/* Right side - Actions */}
           <div className="flex items-center gap-2">
-            <button className="p-2 text-zinc-400 hover:text-white transition-colors">
-              <i className="fa-solid fa-magnifying-glass"></i>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="p-2 text-zinc-400 hover:text-white transition-colors"
+              title="Refresh"
+            >
+              <i className="fa-solid fa-arrows-rotate"></i>
             </button>
             <button className="p-2 text-zinc-400 hover:text-white transition-colors">
               <i className="fa-solid fa-gear"></i>
