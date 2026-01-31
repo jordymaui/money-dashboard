@@ -124,7 +124,7 @@ export function SidebarPanel({
         </div>
       </div>
 
-      {/* Position Distribution */}
+      {/* Position Distribution - Long vs Short */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-zinc-500 text-sm">
@@ -143,15 +143,16 @@ export function SidebarPanel({
           </div>
         </div>
         <div className="relative">
-          <div className="h-6 bg-zinc-800 rounded overflow-hidden">
+          {/* Long/Short distribution bar */}
+          <div className="h-6 bg-red-500/30 rounded overflow-hidden flex">
             <div 
-              className={cn('h-full transition-all', accentClasses[accentColor])}
-              style={{ width: `${positionPercent}%` }}
+              className="h-full bg-emerald-500 transition-all rounded-l"
+              style={{ width: `${longPercent}%` }}
             />
           </div>
           <div className="flex justify-between mt-1 text-xs text-zinc-600">
-            <span>0</span>
-            <span>{formatCompact(totalPositionValue)}</span>
+            <span className="text-emerald-400/70">Long {formatCompact(longExposure)}</span>
+            <span className="text-red-400/70">Short {formatCompact(shortExposure)}</span>
           </div>
         </div>
       </div>

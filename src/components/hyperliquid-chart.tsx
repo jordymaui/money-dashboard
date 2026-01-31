@@ -111,10 +111,13 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
       if (periodData && periodData.accountValueHistory.length > 0) {
         const history = periodData.accountValueHistory
         
-        // Check actual data range to decide label format
+        // Check actual data range and density to decide label format
         const firstTimestamp = history[0][0]
         const lastTimestamp = history[history.length - 1][0]
         const dataRangeMs = lastTimestamp - firstTimestamp
+        const dataRangeDays = dataRangeMs / (24 * 60 * 60 * 1000)
+        const pointsPerDay = history.length / Math.max(dataRangeDays, 1)
+        
         const ONE_DAY = 24 * 60 * 60 * 1000
         const ONE_WEEK = 7 * ONE_DAY
         
@@ -123,14 +126,18 @@ export function HyperliquidChart({ accentColor = 'green' }: HyperliquidChartProp
           const date = new Date(timestamp)
           const value = parseFloat(valueStr)
           
-          // Format X-axis label based on actual data range
+          // Format X-axis label based on data range AND density
+          // If multiple points per day, always include time
           let dateLabel: string
           if (dataRangeMs <= ONE_DAY) {
+            // Under 1 day: just time
             dateLabel = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-          } else if (dataRangeMs <= ONE_WEEK) {
-            dateLabel = date.toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + 
+          } else if (dataRangeMs <= ONE_WEEK || pointsPerDay > 1.5) {
+            // Under 1 week OR multiple points per day: day + time
+            dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + 
                         date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
           } else {
+            // Over 1 week with sparse data: just date
             dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
           }
           
