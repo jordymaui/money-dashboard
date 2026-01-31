@@ -11,15 +11,13 @@ interface PositionsTableProps {
   accentColor?: AccentColor
 }
 
-type TabType = 'Active Positions' | 'Open Orders' | 'Recent Fills' | 'Completed Trades' | 'TWAP' | 'Deposits & Withdrawals'
+type TabType = 'Active Positions' | 'Open Orders' | 'Completed Trades' | 'Deposits & Withdrawals'
 type MarketType = 'Perpetual' | 'Spot'
 
 const tabs: { label: TabType; icon: string }[] = [
   { label: 'Active Positions', icon: 'fa-layer-group' },
   { label: 'Open Orders', icon: 'fa-clock' },
-  { label: 'Recent Fills', icon: 'fa-check-circle' },
   { label: 'Completed Trades', icon: 'fa-flag-checkered' },
-  { label: 'TWAP', icon: 'fa-timeline' },
   { label: 'Deposits & Withdrawals', icon: 'fa-money-bill-transfer' },
 ]
 
@@ -64,8 +62,6 @@ export function PositionsTable({ positions, fills = [], accentColor = 'green' }:
     switch (tab) {
       case 'Active Positions':
         return positions.length
-      case 'Recent Fills':
-        return recentFills.length
       case 'Completed Trades':
         return completedTrades.length
       default:
@@ -126,9 +122,6 @@ export function PositionsTable({ positions, fills = [], accentColor = 'green' }:
               <tr key={position.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-xs font-bold">
-                      {position.coin.charAt(0)}
-                    </div>
                     <span className="font-medium text-white">{position.coin}</span>
                     <span className="text-zinc-500 text-xs">{position.leverage}x</span>
                   </div>
@@ -373,14 +366,10 @@ export function PositionsTable({ positions, fills = [], accentColor = 'green' }:
     switch (selectedTab) {
       case 'Active Positions':
         return renderPositionsTable()
-      case 'Recent Fills':
-        return renderFillsTable()
       case 'Completed Trades':
         return renderCompletedTradesTable()
       case 'Open Orders':
         return renderEmptyState('No open orders', 'fa-clock')
-      case 'TWAP':
-        return renderEmptyState('No active TWAP orders', 'fa-timeline')
       case 'Deposits & Withdrawals':
         return renderEmptyState('No recent deposits or withdrawals', 'fa-money-bill-transfer')
       default:
