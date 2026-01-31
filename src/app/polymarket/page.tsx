@@ -540,82 +540,71 @@ export default function PolymarketPage() {
               {todayChange >= 0 ? '+' : ''}{formatCurrency(todayChange)} ({formatPercent(todayChangePercent)}) Today
             </div>
             
-            {/* Deposit/Withdraw Buttons */}
-            <div className="flex gap-3">
-              <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 rounded-full text-white font-medium transition-colors">
-                <i className="fa-solid fa-arrow-down"></i>
-                Deposit
-              </button>
-              <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-zinc-700 hover:bg-zinc-800 rounded-full text-white font-medium transition-colors">
-                <i className="fa-solid fa-arrow-up"></i>
-                Withdraw
-              </button>
+            </div>
+        </div>
+      </div>
+
+      {/* Profit/Loss Chart Box */}
+      <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-6 mb-6">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-red-400">❤️</span>
+              <span className="text-zinc-400 text-sm">Profit/Loss</span>
+              <i className="fa-solid fa-circle-info text-zinc-600 text-xs cursor-help" title="Realized + Unrealized P&L"></i>
+            </div>
+            <div className={cn(
+              'text-4xl font-bold tracking-tight',
+              totalPnL >= 0 ? 'text-green-400' : 'text-red-400'
+            )}>
+              {totalPnL >= 0 ? '+' : '-'}{formatCurrency(Math.abs(totalPnL))}
+            </div>
+            <div className="text-zinc-500 text-sm mt-1 flex items-center gap-3">
+              <span>All-Time</span>
+              <span className="text-zinc-600">|</span>
+              <span className={realizedPnL >= 0 ? 'text-green-500/70' : 'text-red-500/70'}>
+                Realized: {realizedPnL >= 0 ? '+' : ''}{formatCurrency(realizedPnL)}
+              </span>
+              <span className={unrealizedPnL >= 0 ? 'text-green-500/70' : 'text-red-500/70'}>
+                Unrealized: {unrealizedPnL >= 0 ? '+' : ''}{formatCurrency(unrealizedPnL)}
+              </span>
             </div>
           </div>
-
-          {/* Right Side - Profit/Loss Chart */}
-          <div className="lg:w-2/3">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-red-400">❤️</span>
-                  <span className="text-zinc-400 text-sm">Profit/Loss</span>
-                  <i className="fa-solid fa-circle-info text-zinc-600 text-xs cursor-help" title="Realized + Unrealized P&L"></i>
-                </div>
-                <div className={cn(
-                  'text-4xl font-bold tracking-tight',
-                  totalPnL >= 0 ? 'text-green-400' : 'text-red-400'
-                )}>
-                  {totalPnL >= 0 ? '+' : '-'}{formatCurrency(Math.abs(totalPnL))}
-                </div>
-                <div className="text-zinc-500 text-sm mt-1 flex items-center gap-3">
-                  <span>All-Time</span>
-                  <span className="text-zinc-600">|</span>
-                  <span className={realizedPnL >= 0 ? 'text-green-500/70' : 'text-red-500/70'}>
-                    Realized: {realizedPnL >= 0 ? '+' : ''}{formatCurrency(realizedPnL)}
-                  </span>
-                  <span className={unrealizedPnL >= 0 ? 'text-green-500/70' : 'text-red-500/70'}>
-                    Unrealized: {unrealizedPnL >= 0 ? '+' : ''}{formatCurrency(unrealizedPnL)}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                {/* Time Period Toggles */}
-                <div className="flex bg-zinc-800 rounded-lg p-1">
-                  {(['1D', '1W', '1M', 'ALL'] as TimePeriod[]).map((period) => (
-                    <button
-                      key={period}
-                      onClick={() => setTimePeriod(period)}
-                      className={cn(
-                        'px-3 py-1 text-sm font-medium rounded transition-colors',
-                        timePeriod === period
-                          ? 'bg-zinc-700 text-white'
-                          : 'text-zinc-500 hover:text-zinc-300'
-                      )}
-                    >
-                      {period}
-                    </button>
-                  ))}
-                </div>
-                
-                {/* Polymarket Logo */}
-                <div className="flex items-center gap-1 text-zinc-500 ml-4">
-                  <i className="fa-solid fa-chart-line"></i>
-                  <span className="text-sm font-medium">Polymarket</span>
-                </div>
-              </div>
+          
+          <div className="flex items-center gap-2">
+            {/* Time Period Toggles */}
+            <div className="flex bg-zinc-800 rounded-lg p-1">
+              {(['1D', '1W', '1M', 'ALL'] as TimePeriod[]).map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setTimePeriod(period)}
+                  className={cn(
+                    'px-3 py-1 text-sm font-medium rounded transition-colors',
+                    timePeriod === period
+                      ? 'bg-zinc-700 text-white'
+                      : 'text-zinc-500 hover:text-zinc-300'
+                  )}
+                >
+                  {period}
+                </button>
+              ))}
             </div>
             
-            {/* Chart */}
-            <div className="h-32">
-              <PortfolioChart 
-                data={chartData} 
-                height={120} 
-                color={totalPnL >= 0 ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'}
-              />
+            {/* Polymarket Logo */}
+            <div className="flex items-center gap-1 text-zinc-500 ml-4">
+              <i className="fa-solid fa-chart-line"></i>
+              <span className="text-sm font-medium">Polymarket</span>
             </div>
           </div>
+        </div>
+        
+        {/* Chart */}
+        <div className="h-32">
+          <PortfolioChart 
+            data={chartData} 
+            height={120} 
+            color={totalPnL >= 0 ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'}
+          />
         </div>
       </div>
 

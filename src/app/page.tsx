@@ -24,13 +24,39 @@ async function getLatestHyperliquidData() {
   }
 }
 
+async function getPolymarketData() {
+  // Get open positions
+  const { data: positions } = await supabase
+    .from('polymarket_positions')
+    .select('*')
+    .eq('redeemable', false)
+
+  // Get closed positions for realized P&L
+  const { data: closedPositions } = await supabase
+    .from('polymarket_closed_positions')
+    .select('realized_pnl')
+
+  const openPositions = positions?.filter(p => (p.current_value || 0) > 0) || []
+  const portfolioValue = openPositions.reduce((sum, p) => sum + (p.current_value || 0), 0)
+  const realizedPnl = closedPositions?.reduce((sum, p) => sum + (p.realized_pnl || 0), 0) || 0
+  const unrealizedPnl = positions?.reduce((sum, p) => sum + (p.cash_pnl || 0), 0) || 0
+  const totalPnl = realizedPnl + unrealizedPnl
+
+  return {
+    value: portfolioValue,
+    pnl: totalPnl,
+    positions: openPositions.length
+  }
+}
+
 export const revalidate = 60
 
 export default async function Home() {
   const hyperliquidData = await getLatestHyperliquidData()
+  const polymarketData = await getPolymarketData()
   
   // Calculate total portfolio value
-  const totalValue = hyperliquidData.accountValue + 0 + 0 // Polymarket + SDF are $0 for now
+  const totalValue = hyperliquidData.accountValue + polymarketData.value + 0 // SDF is $0 for now
 
   const platforms = [
     {
@@ -51,10 +77,10 @@ export default async function Home() {
       icon: 'fa-bullseye',
       href: '/polymarket',
       accentColor: 'blue',
-      value: 0,
-      pnl: 0,
-      positions: 0,
-      status: 'coming-soon',
+      value: polymarketData.value,
+      pnl: polymarketData.pnl,
+      positions: polymarketData.positions,
+      status: 'live',
       description: 'Prediction markets'
     },
     {
