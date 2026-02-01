@@ -120,28 +120,28 @@ export default function Home() {
 
   const platforms = [
     {
-      id: 'sdf',
-      name: 'Sport.Fun',
-      icon: 'fa-futbol',
-      href: '/football',
-      accentColor: 'emerald',
-      value: data.sdf.value,
-      pnl: data.sdf.pnl,
-      positions: data.sdf.positions,
-      status: 'live',
-      description: 'Fantasy sports'
-    },
-    {
       id: 'hyperliquid',
       name: 'Hyperliquid',
       icon: 'fa-chart-line',
       href: '/hyperliquid',
-      accentColor: 'white',
+      accentColor: 'emerald',
       value: data.hyperliquid.accountValue,
       pnl: data.hyperliquid.unrealizedPnl,
       positions: data.hyperliquid.positions,
       status: 'live',
       description: 'Perpetual trading'
+    },
+    {
+      id: 'sdf',
+      name: 'Sport.Fun',
+      icon: 'fa-futbol',
+      href: '/football',
+      accentColor: 'white',
+      value: data.sdf.value,
+      pnl: data.sdf.pnl,
+      positions: data.sdf.positions,
+      status: 'live',
+      description: 'Fantasy sports'
     },
     {
       id: 'polymarket',
