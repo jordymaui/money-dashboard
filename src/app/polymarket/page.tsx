@@ -1,12 +1,16 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
-import { PolymarketPosition, PolymarketClosedPosition, PolymarketActivity } from '@/types'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { PolymarketChart } from '@/components/polymarket-chart'
-import { fetchPolymarketUSDCBalance } from '@/lib/polymarket'
+import { 
+  fetchAllPolymarketData,
+  PolymarketPosition,
+  PolymarketClosedPosition,
+  PolymarketActivity,
+  PnLTimelinePoint
+} from '@/lib/polymarket'
 
 type TimePeriod = '1D' | '1W' | '1M' | 'ALL'
 type TabType = 'positions' | 'orders' | 'history'
@@ -278,7 +282,7 @@ function PositionAccordion({ position, isOpen, onToggle }: {
 
 // Positions Table Component
 function PositionsTable({ positions }: { positions: PolymarketPosition[] }) {
-  const [openId, setOpenId] = useState<number | null>(null)
+  const [openId, setOpenId] = useState<string | null>(null)
   const openPositions = positions.filter(p => !p.redeemable && p.current_value > 0)
   
   if (openPositions.length === 0) {
@@ -296,10 +300,10 @@ function PositionsTable({ positions }: { positions: PolymarketPosition[] }) {
       <div className="md:hidden">
         {openPositions.map((pos) => (
           <PositionAccordion
-            key={pos.id}
+            key={pos.asset}
             position={pos}
-            isOpen={openId === pos.id}
-            onToggle={() => setOpenId(openId === pos.id ? null : pos.id)}
+            isOpen={openId === pos.asset}
+            onToggle={() => setOpenId(openId === pos.asset ? null : pos.asset)}
           />
         ))}
       </div>
@@ -319,7 +323,7 @@ function PositionsTable({ positions }: { positions: PolymarketPosition[] }) {
         </thead>
         <tbody>
           {openPositions.map((pos) => (
-            <tr key={pos.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
+            <tr key={pos.asset} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
                   {pos.icon && (
@@ -355,6 +359,9 @@ export default function PolymarketPage() {
   const [closedPositions, setClosedPositions] = useState<PolymarketClosedPosition[]>([])
   const [activity, setActivity] = useState<PolymarketActivity[]>([])
   const [usdcBalance, setUsdcBalance] = useState<number>(0)
+  const [positionsValue, setPositionsValue] = useState<number>(0)
+  const [pnlStats, setPnlStats] = useState({ realizedPnL: 0, unrealizedPnL: 0, totalPnL: 0, wins: 0, losses: 0 })
+  const [pnlTimeline, setPnlTimeline] = useState<PnLTimelinePoint[]>([])
   const [loading, setLoading] = useState(true)
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('ALL')
   const [activeTab, setActiveTab] = useState<TabType>('positions')
@@ -363,17 +370,15 @@ export default function PolymarketPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [positionsRes, closedRes, activityRes, balance] = await Promise.all([
-        supabase.from('polymarket_positions').select('*').order('current_value', { ascending: false }),
-        supabase.from('polymarket_closed_positions').select('*').order('timestamp', { ascending: false }),
-        supabase.from('polymarket_activity').select('*').order('timestamp', { ascending: false }),
-        fetchPolymarketUSDCBalance()
-      ])
+      const data = await fetchAllPolymarketData()
       
-      if (positionsRes.data) setPositions(positionsRes.data)
-      if (closedRes.data) setClosedPositions(closedRes.data)
-      if (activityRes.data) setActivity(activityRes.data)
-      setUsdcBalance(balance)
+      setPositions(data.positions)
+      setClosedPositions(data.closedPositions)
+      setActivity(data.activity)
+      setUsdcBalance(data.usdcBalance)
+      setPositionsValue(data.positionsValue)
+      setPnlStats(data.pnlStats)
+      setPnlTimeline(data.timeline)
       setCountdown(REFRESH_INTERVAL)
     } catch (err) {
       console.error('Error fetching data:', err)
@@ -402,25 +407,12 @@ export default function PolymarketPage() {
     return () => clearInterval(timer)
   }, [fetchData])
 
-  // Calculate portfolio stats
-  const openPositions = positions.filter(p => !p.redeemable && p.current_value > 0)
-  const positionsValue = openPositions.reduce((sum, p) => sum + (p.current_value || 0), 0)
-  
-  // Total portfolio = USDC balance (cash) + open positions value
+  // Portfolio stats (pre-calculated from API)
+  const openPositions = positions.filter(p => (p.current_value || 0) > 0 && !p.redeemable)
   const totalPortfolioValue = usdcBalance + positionsValue
   
-  // P&L Calculation:
-  // - Winners: from closed-positions API (bets that paid out)
-  // - Losers: from positions API where current_value = 0 (bets that lost completely)
-  // - Unrealized: from positions with current_value > 0 (still active)
-  const winningPnL = closedPositions.reduce((sum, p) => sum + (p.realized_pnl || 0), 0)
-  const losingPnL = positions
-    .filter(p => p.current_value === 0 || p.current_value === null)
-    .reduce((sum, p) => sum + (p.cash_pnl || 0), 0)
-  const unrealizedPnL = openPositions.reduce((sum, p) => sum + (p.cash_pnl || 0), 0)
-  
-  const realizedPnL = winningPnL + losingPnL  // Combines winners and losers
-  const totalPnL = realizedPnL + unrealizedPnL
+  // P&L from pre-calculated stats
+  const { realizedPnL, unrealizedPnL, totalPnL, wins, losses } = pnlStats
   
   // Calculate today's change from recent activity
   const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
@@ -429,7 +421,7 @@ export default function PolymarketPage() {
     return ts >= oneDayAgo
   })
   const todayChange = todayActivity.reduce((sum, a) => {
-    const value = a.usdc_size || (a.size * a.price)
+    const value = a.usdcSize || (a.size * a.price)
     return sum + (a.side === 'BUY' ? -value : value)
   }, 0)
   const todayChangePercent = totalPortfolioValue > 0 ? (todayChange / totalPortfolioValue) * 100 : 0
@@ -557,9 +549,12 @@ export default function PolymarketPage() {
                   Positions: <span className="text-white font-mono">{formatCurrency(positionsValue)}</span>
                 </span>
               )}
-              <span className={cn('font-mono', realizedPnL >= 0 ? 'text-green-400' : 'text-red-400')}>
+              <span className={cn('font-mono font-bold', totalPnL >= 0 ? 'text-green-400' : 'text-red-400')}>
                 <i className="fa-solid fa-chart-line mr-1"></i>
-                P&L: {realizedPnL >= 0 ? '+' : ''}{formatCurrency(realizedPnL)}
+                P&L: {totalPnL >= 0 ? '+' : ''}{formatCurrency(totalPnL)}
+              </span>
+              <span className="text-zinc-500 text-xs">
+                ({wins}W / {losses}L)
               </span>
             </div>
           </div>
@@ -578,12 +573,14 @@ export default function PolymarketPage() {
       </div>
 
       {/* Interactive P&L Chart */}
-      <div className="mb-6">
+      <div className="mb-4 md:mb-6">
         <PolymarketChart
-          closedPositions={closedPositions}
+          timeline={pnlTimeline}
           totalPnL={totalPnL}
           realizedPnL={realizedPnL}
           unrealizedPnL={unrealizedPnL}
+          wins={wins}
+          losses={losses}
           timePeriod={timePeriod}
           onTimePeriodChange={setTimePeriod}
         />
@@ -686,7 +683,7 @@ export default function PolymarketPage() {
                     const value = isActivity ? (data.usdc_size || data.size * data.price) : data.realized_pnl
                     
                     return (
-                      <div key={`${item.type}-${data.id}-${idx}`} className="border-b border-zinc-800/50 px-4 py-3">
+                      <div key={`${item.type}-${data.asset}-${idx}`} className="border-b border-zinc-800/50 px-4 py-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <span className={cn(
@@ -731,8 +728,8 @@ export default function PolymarketPage() {
                   ) : (
                     getFilteredHistory().slice(0, 50).map((item, idx) => (
                       item.type === 'activity' 
-                        ? <ActivityRow key={`activity-${item.data.id}`} activity={item.data} />
-                        : <ClosedPositionRow key={`closed-${item.data.id}`} position={item.data} />
+                        ? <ActivityRow key={`activity-${item.data.asset}`} activity={item.data} />
+                        : <ClosedPositionRow key={`closed-${item.data.asset}`} position={item.data} />
                     ))
                   )}
                 </tbody>
@@ -756,9 +753,7 @@ export default function PolymarketPage() {
         </div>
         <div>
           <i className="fa-solid fa-clock-rotate-left mr-1"></i>
-          {positions.length > 0 
-            ? `Last synced: ${new Date(positions[0]?.updated_at || Date.now()).toLocaleString()}`
-            : 'Run polymarket-sync.js to import data'}
+Live data from Polymarket API
         </div>
       </div>
 
