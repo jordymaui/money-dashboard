@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils'
 const navItems = [
   { href: '/', label: 'Overview', icon: 'fa-chart-pie' },
   { href: '/hyperliquid', label: 'Hyperliquid', icon: 'fa-chart-line', accent: 'green' },
-  { href: '/polymarket', label: 'Polymarket', icon: 'fa-bullseye', accent: 'blue' },
   { href: '/football', label: 'SDF', icon: 'fa-futbol', accent: 'white' },
+  { href: '/polymarket', label: 'Polymarket', icon: 'fa-bullseye', accent: 'blue' },
 ]
 
 export function Nav() {

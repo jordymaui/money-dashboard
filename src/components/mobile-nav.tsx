@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils'
 const navItems = [
   { href: '/', label: 'Home', icon: 'fa-house' },
   { href: '/hyperliquid', label: 'Perps', icon: 'fa-chart-line', accent: 'emerald' },
-  { href: '/polymarket', label: 'Predict', icon: 'fa-bullseye', accent: 'blue' },
   { href: '/football', label: 'SDF', icon: 'fa-futbol', accent: 'white' },
+  { href: '/polymarket', label: 'Predict', icon: 'fa-bullseye', accent: 'blue' },
 ]
 
 export function MobileNav() {
