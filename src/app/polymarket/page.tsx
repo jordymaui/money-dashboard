@@ -409,11 +409,17 @@ export default function PolymarketPage() {
   // Total portfolio = USDC balance (cash) + open positions value
   const totalPortfolioValue = usdcBalance + positionsValue
   
-  // P&L Calculation: 
-  // - Realized = from closed positions (settled bets)
-  // - Unrealized = ONLY from actually open positions (current_value > 0, not redeemable)
-  const realizedPnL = closedPositions.reduce((sum, p) => sum + (p.realized_pnl || 0), 0)
+  // P&L Calculation:
+  // - Winners: from closed-positions API (bets that paid out)
+  // - Losers: from positions API where current_value = 0 (bets that lost completely)
+  // - Unrealized: from positions with current_value > 0 (still active)
+  const winningPnL = closedPositions.reduce((sum, p) => sum + (p.realized_pnl || 0), 0)
+  const losingPnL = positions
+    .filter(p => p.current_value === 0 || p.current_value === null)
+    .reduce((sum, p) => sum + (p.cash_pnl || 0), 0)
   const unrealizedPnL = openPositions.reduce((sum, p) => sum + (p.cash_pnl || 0), 0)
+  
+  const realizedPnL = winningPnL + losingPnL  // Combines winners and losers
   const totalPnL = realizedPnL + unrealizedPnL
   
   // Calculate today's change from recent activity
