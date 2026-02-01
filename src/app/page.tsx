@@ -7,7 +7,7 @@ import { fetchAllPolymarketData } from '@/lib/polymarket'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
-const REFRESH_INTERVAL = 60 // seconds
+const REFRESH_INTERVAL = 15 // seconds
 
 interface PlatformData {
   hyperliquid: { accountValue: number; unrealizedPnl: number; positions: number }

@@ -8,7 +8,7 @@ import { HyperliquidAnalytics } from '@/components/hyperliquid-analytics'
 import { fetchHyperliquidState, fetchHyperliquidFills, fetchAllMids, transformPositions, HyperliquidFill } from '@/lib/hyperliquid'
 import { HyperliquidPosition } from '@/types'
 
-const REFRESH_INTERVAL = 60 // seconds
+const REFRESH_INTERVAL = 15 // seconds
 
 export default function HyperliquidPage() {
   const [positions, setPositions] = useState<HyperliquidPosition[]>([])

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { fetchSDFPortfolio, SDFPortfolio, SDF_WALLET, SDF_CONTRACTS, fetchFunCostBasis, FunCostBasis } from '@/lib/sdf'
 import Link from 'next/link'
 
-const REFRESH_INTERVAL = 60
+const REFRESH_INTERVAL = 15
 
 function formatCurrency(value: number, decimals = 2): string {
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`
