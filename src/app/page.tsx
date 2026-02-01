@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { fetchHyperliquidState, transformPositions, fetchAllMids } from '@/lib/hyperliquid'
-import { fetchSDFPortfolio, fetchFunPrice } from '@/lib/sdf'
+import { fetchSDFPortfolio } from '@/lib/sdf'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -61,17 +61,12 @@ export default function Home() {
       const realizedPnl = closedPositions?.reduce((sum, p) => sum + (p.realized_pnl || 0), 0) || 0
       const unrealizedPnl = polyPositions?.reduce((sum, p) => sum + (p.cash_pnl || 0), 0) || 0
 
-      // Fetch SDF data from Base blockchain
+      // Fetch SDF data from Base blockchain (includes FUN + USDC + Players)
       let sdfData = { value: 0, pnl: 0, positions: 0 }
       try {
-        const [sdfPortfolio, funPrice] = await Promise.all([
-          fetchSDFPortfolio(),
-          fetchFunPrice()
-        ])
-        const funValue = (sdfPortfolio.funToken?.balanceFormatted || 0) * funPrice
-        const usdcValue = sdfPortfolio.usdcBalance?.balanceFormatted || 0
+        const sdfPortfolio = await fetchSDFPortfolio()
         sdfData = {
-          value: funValue + usdcValue,
+          value: sdfPortfolio.totalPortfolioValue || 0,
           pnl: 0, // No historical PnL tracking yet
           positions: sdfPortfolio.playerShares.length
         }
@@ -125,11 +120,23 @@ export default function Home() {
 
   const platforms = [
     {
+      id: 'sdf',
+      name: 'Sport.Fun',
+      icon: 'fa-futbol',
+      href: '/football',
+      accentColor: 'emerald',
+      value: data.sdf.value,
+      pnl: data.sdf.pnl,
+      positions: data.sdf.positions,
+      status: 'live',
+      description: 'Fantasy sports'
+    },
+    {
       id: 'hyperliquid',
       name: 'Hyperliquid',
       icon: 'fa-chart-line',
       href: '/hyperliquid',
-      accentColor: 'emerald',
+      accentColor: 'white',
       value: data.hyperliquid.accountValue,
       pnl: data.hyperliquid.unrealizedPnl,
       positions: data.hyperliquid.positions,
@@ -147,18 +154,6 @@ export default function Home() {
       positions: data.polymarket.positions,
       status: 'live',
       description: 'Prediction markets'
-    },
-    {
-      id: 'sdf',
-      name: 'SDF',
-      icon: 'fa-futbol',
-      href: '/football',
-      accentColor: 'white',
-      value: data.sdf.value,
-      pnl: data.sdf.pnl,
-      positions: data.sdf.positions,
-      status: data.sdf.value > 0 ? 'live' : 'live',
-      description: 'Football.fun'
     }
   ]
 
