@@ -316,18 +316,10 @@ export async function fetchSDFPortfolio(wallet: string = SDF_WALLET): Promise<SD
 }
 
 // ============================================
-// $FUN Token Purchase Tracking (On-Chain)
+// $FUN Token Purchase Tracking (On-Chain via Blockscout)
 // ============================================
 
-const BASESCAN_API = 'https://api.basescan.org/api'
-const BASESCAN_KEY = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || ''
-
-// Known DEX routers on Base for swap detection
-const DEX_ROUTERS = [
-  '0xcf77a3ba9a5ca399b7c97c74d54e5b1beb874e43', // Aerodrome Router
-  '0x4752ba5dbc23f44d87826276bf6fd6b1c372ad24', // Uniswap V3 Router
-  '0x2626664c2603336e57b271c5c0b26f421741e481', // Uniswap Universal Router
-].map(a => a.toLowerCase())
+const BLOCKSCOUT_API = 'https://base.blockscout.com/api/v2'
 
 export interface FunPurchase {
   txHash: string
@@ -336,7 +328,6 @@ export interface FunPurchase {
   funAmount: number
   costUsd: number
   pricePerFun: number
-  source: 'swap' | 'transfer' | 'unknown'
 }
 
 export interface FunCostBasis {
@@ -350,161 +341,92 @@ export interface FunCostBasis {
   purchases: FunPurchase[]
 }
 
-// Fetch all FUN token transfers for wallet
-async function fetchFunTransfers(wallet: string): Promise<any[]> {
-  const url = `${BASESCAN_API}?module=account&action=tokentx&contractaddress=${SDF_CONTRACTS.FUN_TOKEN}&address=${wallet}&sort=asc${BASESCAN_KEY ? `&apikey=${BASESCAN_KEY}` : ''}`
-  
+// Parse and analyze FUN purchases from Phantom wallet
+export async function fetchFunCostBasis(wallet: string = PHANTOM_WALLET): Promise<FunCostBasis> {
   try {
-    const response = await fetch(url, { cache: 'no-store' })
-    const data = await response.json()
-    if (data.status === '1' && data.result) {
-      return data.result
-    }
-    return []
-  } catch (error) {
-    console.error('Error fetching FUN transfers:', error)
-    return []
-  }
-}
-
-// Fetch internal transactions for a tx hash to find ETH spent
-async function fetchTxDetails(txHash: string): Promise<{ ethSpent: number; from: string; to: string } | null> {
-  const url = `${BASESCAN_API}?module=proxy&action=eth_getTransactionByHash&txhash=${txHash}${BASESCAN_KEY ? `&apikey=${BASESCAN_KEY}` : ''}`
-  
-  try {
-    const response = await fetch(url, { cache: 'no-store' })
-    const data = await response.json()
-    if (data.result) {
-      const ethValue = parseInt(data.result.value, 16) / 1e18
-      return {
-        ethSpent: ethValue,
-        from: data.result.from?.toLowerCase() || '',
-        to: data.result.to?.toLowerCase() || ''
-      }
-    }
-    return null
-  } catch (error) {
-    return null
-  }
-}
-
-// Fetch USDC transfers in same transaction (for USDC->FUN swaps)
-async function fetchUsdcTransfersInTx(txHash: string, wallet: string): Promise<number> {
-  const url = `${BASESCAN_API}?module=account&action=tokentx&contractaddress=${SDF_CONTRACTS.USDC}&address=${wallet}${BASESCAN_KEY ? `&apikey=${BASESCAN_KEY}` : ''}`
-  
-  try {
-    const response = await fetch(url, { cache: 'no-store' })
-    const data = await response.json()
-    if (data.status === '1' && data.result) {
-      // Find USDC transfer in same tx where wallet sent USDC
-      const usdcOut = data.result.find((tx: any) => 
-        tx.hash.toLowerCase() === txHash.toLowerCase() && 
-        tx.from.toLowerCase() === wallet.toLowerCase()
-      )
-      if (usdcOut) {
-        return parseFloat(usdcOut.value) / 1e6 // USDC has 6 decimals
-      }
-    }
-    return 0
-  } catch (error) {
-    return 0
-  }
-}
-
-// Get historical ETH price at timestamp (simplified - uses current as fallback)
-async function getEthPriceAtTime(timestamp: number): Promise<number> {
-  // For simplicity, use approximate historical prices or current
-  // In production, you'd query a historical price API
-  try {
-    const response = await fetch(
-      `${COINGECKO_API}/simple/price?ids=ethereum&vs_currencies=usd`,
+    // Get FUN token transfers for wallet
+    const funRes = await fetch(
+      `${BLOCKSCOUT_API}/addresses/${wallet}/token-transfers?type=ERC-20&token=${SDF_CONTRACTS.FUN_TOKEN}`,
       { cache: 'no-store' }
     )
-    const data = await response.json()
-    return data.ethereum?.usd || 3000
-  } catch {
-    return 3000 // Fallback
-  }
-}
-
-// Parse and analyze FUN purchases (uses Phantom wallet where buys happen)
-export async function fetchFunCostBasis(wallet: string = PHANTOM_WALLET): Promise<FunCostBasis> {
-  const transfers = await fetchFunTransfers(wallet)
-  const currentPrice = await fetchFunPrice()
-  const ethPrice = await getEthPriceAtTime(Date.now())
-  
-  // Filter for incoming transfers (buys/receives)
-  const incomingTransfers = transfers.filter(
-    (tx: any) => tx.to.toLowerCase() === wallet.toLowerCase()
-  )
-  
-  const purchases: FunPurchase[] = []
-  let totalFunBought = 0
-  let totalCostUsd = 0
-  
-  // Process each incoming transfer
-  for (const tx of incomingTransfers) {
-    const funAmount = parseFloat(tx.value) / 1e18
-    const timestamp = parseInt(tx.timeStamp) * 1000
-    const date = new Date(timestamp).toISOString().split('T')[0]
+    const funData = await funRes.json()
     
-    let costUsd = 0
-    let source: 'swap' | 'transfer' | 'unknown' = 'unknown'
+    // Filter incoming transfers (buys)
+    const buys = (funData.items || []).filter((tx: any) => 
+      tx.to?.hash?.toLowerCase() === wallet.toLowerCase()
+    )
     
-    // Check if this was a DEX swap
-    const txDetails = await fetchTxDetails(tx.hash)
+    const purchases: FunPurchase[] = []
+    let totalFunBought = 0
+    let totalCostUsd = 0
     
-    if (txDetails && DEX_ROUTERS.includes(txDetails.to)) {
-      source = 'swap'
+    // Process each buy - get USDC spent from same transaction
+    for (const tx of buys) {
+      const funWei = BigInt(tx.total?.value || '0')
+      const funAmount = Number(funWei) / 1e18
+      const timestamp = new Date(tx.timestamp).getTime()
+      const date = tx.timestamp?.split('T')[0] || ''
+      const txHash = tx.transaction_hash
       
-      // Check for ETH spent
-      if (txDetails.ethSpent > 0.0001) {
-        costUsd = txDetails.ethSpent * ethPrice
-      } else {
-        // Check for USDC spent
-        const usdcSpent = await fetchUsdcTransfersInTx(tx.hash, wallet)
-        if (usdcSpent > 0) {
-          costUsd = usdcSpent
-        }
+      // Get all token transfers in this transaction to find USDC spent
+      const txRes = await fetch(
+        `${BLOCKSCOUT_API}/transactions/${txHash}/token-transfers`,
+        { cache: 'no-store' }
+      )
+      const txData = await txRes.json()
+      
+      // Find USDC transfer FROM wallet in same tx (the swap cost)
+      const usdcOut = (txData.items || []).find((t: any) => 
+        t.token?.symbol === 'USDC' &&
+        t.from?.hash?.toLowerCase() === wallet.toLowerCase()
+      )
+      
+      if (usdcOut) {
+        const usdcWei = BigInt(usdcOut.total?.value || '0')
+        const costUsd = Number(usdcWei) / 1e6
+        const pricePerFun = costUsd / funAmount
+        
+        totalFunBought += funAmount
+        totalCostUsd += costUsd
+        
+        purchases.push({
+          txHash,
+          timestamp,
+          date,
+          funAmount,
+          costUsd,
+          pricePerFun
+        })
       }
-    } else if (tx.from.toLowerCase() !== wallet.toLowerCase()) {
-      // Transfer from another wallet (not a swap)
-      source = 'transfer'
-      // For transfers, we don't know the cost - could be a gift, migration, etc.
-      // We'll estimate using price at the time (approximation)
-      costUsd = 0 // Don't count transfers in cost basis
     }
     
-    // Only count as purchase if we have a cost
-    if (costUsd > 0) {
-      totalFunBought += funAmount
-      totalCostUsd += costUsd
-      
-      purchases.push({
-        txHash: tx.hash,
-        timestamp,
-        date,
-        funAmount,
-        costUsd,
-        pricePerFun: costUsd / funAmount,
-        source
-      })
+    // Get current price
+    const currentPrice = await fetchFunPrice()
+    const currentValue = totalFunBought * currentPrice
+    const unrealizedPnl = currentValue - totalCostUsd
+    const unrealizedPnlPercent = totalCostUsd > 0 ? (unrealizedPnl / totalCostUsd) * 100 : 0
+    
+    return {
+      totalFunBought,
+      totalCostUsd,
+      averageEntryPrice: totalFunBought > 0 ? totalCostUsd / totalFunBought : 0,
+      currentPrice,
+      currentValue,
+      unrealizedPnl,
+      unrealizedPnlPercent,
+      purchases: purchases.sort((a, b) => b.timestamp - a.timestamp)
     }
-  }
-  
-  const averageEntryPrice = totalFunBought > 0 ? totalCostUsd / totalFunBought : 0
-  const currentValue = totalFunBought * currentPrice
-  const unrealizedPnl = currentValue - totalCostUsd
-  const unrealizedPnlPercent = totalCostUsd > 0 ? (unrealizedPnl / totalCostUsd) * 100 : 0
-  
-  return {
-    totalFunBought,
-    totalCostUsd,
-    averageEntryPrice,
-    currentPrice,
-    currentValue,
-    unrealizedPnl,
-    unrealizedPnlPercent,
-    purchases: purchases.sort((a, b) => b.timestamp - a.timestamp) // Most recent first
+  } catch (error) {
+    console.error('Error fetching FUN cost basis:', error)
+    return {
+      totalFunBought: 0,
+      totalCostUsd: 0,
+      averageEntryPrice: 0,
+      currentPrice: 0,
+      currentValue: 0,
+      unrealizedPnl: 0,
+      unrealizedPnlPercent: 0,
+      purchases: []
+    }
   }
 }
