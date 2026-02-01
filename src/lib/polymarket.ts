@@ -337,35 +337,99 @@ export function calculate24hrPnL(
 
 /**
  * Categorize a Polymarket market by its title
+ * Granular categories for better performance tracking
  */
-export type MarketCategory = 'sports' | 'politics' | 'crypto' | 'culture' | 'finance' | 'other'
+export type MarketCategory = 
+  | 'sports-football'      // Soccer, Premier League, Champions League
+  | 'sports-nfl'           // American Football, NFL, Super Bowl
+  | 'sports-nba'           // Basketball, NBA
+  | 'sports-ufc'           // UFC, Boxing, MMA
+  | 'sports-tennis'        // Tennis, Grand Slams
+  | 'sports-f1'            // Formula 1, Racing
+  | 'sports-other'         // MLB, NHL, Golf, etc.
+  | 'politics-us'          // US Politics
+  | 'politics-intl'        // International Politics
+  | 'crypto'               // Crypto markets
+  | 'finance'              // Finance/Economics
+  | 'culture'              // Pop Culture, Entertainment
+  | 'other'                // Everything else
 
 export function categorizeMarket(title: string): MarketCategory {
   const t = title.toLowerCase()
   
-  // Sports keywords
-  if (/\b(nfl|nba|mlb|nhl|ufc|boxing|tennis|f1|formula|soccer|football|sports?|game|match|win|championship|playoffs?|super\s?bowl|world\s?series|grand\s?prix|premier\s?league|champions?\s?league)\b/.test(t)) {
-    return 'sports'
+  // === SPORTS SUBCATEGORIES (check specific first) ===
+  
+  // Soccer/Football (the world's football)
+  if (/\b(premier\s?league|champions?\s?league|la\s?liga|serie\s?a|bundesliga|ligue\s?1|uefa|fifa|world\s?cup|euro\s?(20\d{2})?|epl|soccer|fc\s|manchester|liverpool|chelsea|arsenal|barcelona|real\s?madrid|psg|bayern|juventus|inter\s?milan|ac\s?milan|tottenham|man\s?(utd|united|city)|leeds|everton|wolves|newcastle|aston\s?villa|west\s?ham|messi|ronaldo|haaland|mbappe|salah)\b/.test(t)) {
+    return 'sports-football'
   }
   
-  // Politics keywords
-  if (/\b(trump|biden|election|congress|senate|political|president|governor|vote|republican|democrat|gop|dnc|cabinet|administration|impeach|legislation|bill\s+(pass|fail)|supreme\s?court|executive\s?order)\b/.test(t)) {
-    return 'politics'
+  // American Football / NFL
+  if (/\b(nfl|super\s?bowl|touchdown|quarterback|chiefs|eagles|49ers|cowboys|patriots|packers|bills|ravens|bengals|dolphins|jets|lions|bears|vikings|saints|buccaneers|falcons|panthers|seahawks|rams|cardinals|broncos|raiders|chargers|colts|texans|titans|jaguars|steelers|browns|commanders|giants|afc|nfc|mahomes|kelce|brady|rodgers)\b/.test(t)) {
+    return 'sports-nfl'
   }
   
-  // Crypto keywords
-  if (/\b(btc|eth|bitcoin|ethereum|crypto|solana|sol|price|token|defi|nft|blockchain|altcoin|memecoin|doge|xrp)\b/.test(t)) {
+  // Basketball / NBA
+  if (/\b(nba|basketball|lakers|celtics|warriors|nets|bucks|76ers|suns|mavericks|nuggets|heat|bulls|knicks|clippers|grizzlies|timberwolves|pelicans|spurs|rockets|thunder|jazz|blazers|kings|hawks|hornets|magic|pistons|pacers|cavaliers|wizards|lebron|curry|durant|giannis|jokic|embiid|tatum|doncic)\b/.test(t)) {
+    return 'sports-nba'
+  }
+  
+  // UFC / Boxing / MMA
+  if (/\b(ufc|mma|boxing|fight|fighter|knockout|ko|tko|bout|heavyweight|lightweight|middleweight|welterweight|featherweight|bantamweight|flyweight|dana\s?white|mcgregor|khabib|jones|adesanya|poirier|ngannou|volkanovski|makhachev|o'?malley|pereira|silva|canelo|fury|wilder|joshua|tyson|paul\s+(vs|v\.?s?\.?)|jake\s?paul|logan\s?paul)\b/.test(t)) {
+    return 'sports-ufc'
+  }
+  
+  // Tennis
+  if (/\b(tennis|wimbledon|us\s?open|french\s?open|australian\s?open|roland\s?garros|grand\s?slam|atp|wta|djokovic|nadal|federer|alcaraz|sinner|medvedev|zverev|tsitsipas|swiatek|sabalenka|gauff|rybakina)\b/.test(t)) {
+    return 'sports-tennis'
+  }
+  
+  // Formula 1 / Racing
+  if (/\b(f1|formula\s?(1|one)|grand\s?prix|verstappen|hamilton|leclerc|norris|sainz|perez|russell|red\s?bull|ferrari|mercedes|mclaren|aston\s?martin|alpine|williams|haas|alfa\s?romeo|fia|monaco\s?gp|silverstone|monza|spa|suzuka|drs|pit\s?stop)\b/.test(t)) {
+    return 'sports-f1'
+  }
+  
+  // Other Sports (MLB, NHL, Golf, etc.)
+  if (/\b(mlb|baseball|nhl|hockey|golf|pga|masters|lpga|ryder\s?cup|cricket|rugby|cycling|tour\s?de\s?france|olympics|marathon|athletics|swimming|esports|league\s?of\s?legends|dota|csgo|valorant|world\s?series|stanley\s?cup|home\s?run|touchdown|slam\s?dunk|hat\s?trick|ohtani|trout|judge|mcdavid|ovechkin|crosby|woods|mcilroy|scheffler|rahm)\b/.test(t)) {
+    return 'sports-other'
+  }
+  
+  // Generic sports catch-all (if mentions game/match/win in sports context)
+  if (/\b(score|playoff|championship|finals|season|draft|trade|roster|coach|manager|stadium|league|division|conference|seed|bracket|tournament)\b/.test(t) && 
+      !/\b(election|vote|political|congress|president)\b/.test(t)) {
+    return 'sports-other'
+  }
+  
+  // === POLITICS ===
+  
+  // US Politics
+  if (/\b(trump|biden|harris|obama|desantis|newsom|haley|ramaswamy|pence|aoc|pelosi|mccarthy|mcconnell|schumer|congress|senate|house\s?(of\s?rep)?|scotus|supreme\s?court|gop|dnc|rnc|republican|democrat|2024\s?election|2028\s?election|electoral|swing\s?state|iowa|new\s?hampshire|nevada|georgia|arizona|pennsylvania|michigan|wisconsin|white\s?house|oval\s?office|potus|executive\s?order|impeach|indictment|fbi|doj|irs|sec\s|cftc|federal)\b/.test(t)) {
+    return 'politics-us'
+  }
+  
+  // International Politics
+  if (/\b(ukraine|russia|putin|zelensky|china|xi\s?jinping|taiwan|eu\s|european\s?union|brexit|uk\s?prime|starmer|sunak|macron|france|germany|scholz|merkel|nato|un\s|united\s?nations|israel|gaza|palestine|netanyahu|iran|north\s?korea|kim\s?jong|modi|india|bolsonaro|brazil|trudeau|canada|australia|japan|kishida|south\s?korea|yoon|mexico|amlo|sanctions|diplomat|embassy|minister|parliament|referendum)\b/.test(t)) {
+    return 'politics-intl'
+  }
+  
+  // Generic politics catch-all
+  if (/\b(election|vote|ballot|poll|candidate|campaign|political|government|legislation|bill\s+(pass|fail)|veto|cabinet|administration|governor|senator|mayor)\b/.test(t)) {
+    return 'politics-us' // Default to US if unclear
+  }
+  
+  // === CRYPTO ===
+  if (/\b(btc|eth|bitcoin|ethereum|crypto|solana|sol|xrp|ripple|cardano|ada|dogecoin|doge|shib|bnb|binance|coinbase|defi|nft|token|blockchain|altcoin|memecoin|stablecoin|usdt|usdc|tether|ledger|metamask|web3|dao|airdrop|halving|etf|sec\s?(crypto|bitcoin|ethereum)|gensler)\b/.test(t)) {
     return 'crypto'
   }
   
-  // Pop Culture keywords
-  if (/\b(oscar|grammy|emmy|movie|celebrity|album|show|entertainment|tv|netflix|streaming|billboard|box\s?office|actor|actress|singer|artist)\b/.test(t)) {
-    return 'culture'
+  // === FINANCE / ECONOMICS ===
+  if (/\b(fed|federal\s?reserve|interest\s?rate|inflation|cpi|ppi|gdp|economy|recession|unemployment|jobs\s?report|nonfarm|fomc|powell|yellen|treasury|bond|yield|stock|s&p|nasdaq|dow|nyse|market\s?(crash|correction|rally)|earnings|ipo|merger|acquisition|bailout|debt\s?ceiling|deficit|tariff|trade\s?war)\b/.test(t)) {
+    return 'finance'
   }
   
-  // Finance keywords
-  if (/\b(fed|federal\s?reserve|interest\s?rate|inflation|gdp|economy|stock|market|s&p|nasdaq|dow|recession|unemployment|cpi|fomc)\b/.test(t)) {
-    return 'finance'
+  // === POP CULTURE / ENTERTAINMENT ===
+  if (/\b(oscar|grammy|emmy|tony|golden\s?globe|bafta|movie|film|box\s?office|netflix|disney|hbo|streaming|album|billboard|spotify|concert|tour|celebrity|kardashian|swift|taylor|beyonce|drake|kanye|ye\s|travis\s?scott|rihanna|bieber|harry\s?styles|dua\s?lipa|bad\s?bunny|weeknd|actor|actress|director|premiere|trailer|sequel|marvel|dc\s|superhero|anime|tv\s?show|series|finale|season\s?\d|bachelor|bachelorette|survivor|big\s?brother|love\s?island|reality\s?tv)\b/.test(t)) {
+    return 'culture'
   }
   
   return 'other'
@@ -376,12 +440,19 @@ export function categorizeMarket(title: string): MarketCategory {
  */
 export function getCategoryInfo(category: MarketCategory): { emoji: string; label: string; color: string } {
   const info: Record<MarketCategory, { emoji: string; label: string; color: string }> = {
-    sports: { emoji: '🏈', label: 'Sports', color: 'text-orange-400' },
-    politics: { emoji: '🏛️', label: 'Politics', color: 'text-blue-400' },
-    crypto: { emoji: '💰', label: 'Crypto', color: 'text-yellow-400' },
-    culture: { emoji: '🎬', label: 'Culture', color: 'text-pink-400' },
-    finance: { emoji: '📈', label: 'Finance', color: 'text-green-400' },
-    other: { emoji: '📊', label: 'Other', color: 'text-zinc-400' }
+    'sports-football': { emoji: '⚽', label: 'Football (Soccer)', color: 'text-green-400' },
+    'sports-nfl': { emoji: '🏈', label: 'NFL', color: 'text-orange-400' },
+    'sports-nba': { emoji: '🏀', label: 'NBA', color: 'text-orange-500' },
+    'sports-ufc': { emoji: '🥊', label: 'UFC/Boxing', color: 'text-red-400' },
+    'sports-tennis': { emoji: '🎾', label: 'Tennis', color: 'text-lime-400' },
+    'sports-f1': { emoji: '🏎️', label: 'F1', color: 'text-red-500' },
+    'sports-other': { emoji: '🏅', label: 'Sports (Other)', color: 'text-amber-400' },
+    'politics-us': { emoji: '🇺🇸', label: 'US Politics', color: 'text-blue-400' },
+    'politics-intl': { emoji: '🌍', label: 'Intl Politics', color: 'text-blue-300' },
+    'crypto': { emoji: '₿', label: 'Crypto', color: 'text-yellow-400' },
+    'finance': { emoji: '📈', label: 'Finance', color: 'text-emerald-400' },
+    'culture': { emoji: '🎬', label: 'Pop Culture', color: 'text-pink-400' },
+    'other': { emoji: '📊', label: 'Other', color: 'text-zinc-400' }
   }
   return info[category]
 }
@@ -406,8 +477,13 @@ export function calculateCategoryBreakdown(
 ): CategoryStats[] {
   const categoryMap = new Map<MarketCategory, { wins: number; losses: number; pnl: number; staked: number }>()
   
-  // Initialize all categories
-  const categories: MarketCategory[] = ['sports', 'politics', 'crypto', 'culture', 'finance', 'other']
+  // Initialize all categories (granular)
+  const categories: MarketCategory[] = [
+    'sports-football', 'sports-nfl', 'sports-nba', 'sports-ufc', 
+    'sports-tennis', 'sports-f1', 'sports-other',
+    'politics-us', 'politics-intl',
+    'crypto', 'finance', 'culture', 'other'
+  ]
   categories.forEach(cat => categoryMap.set(cat, { wins: 0, losses: 0, pnl: 0, staked: 0 }))
   
   // Process closed positions (winners)
