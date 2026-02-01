@@ -402,9 +402,11 @@ export default function PolymarketPage() {
   const openPositions = positions.filter(p => !p.redeemable && p.current_value > 0)
   const totalPortfolioValue = openPositions.reduce((sum, p) => sum + (p.current_value || 0), 0)
   
-  // P&L Calculation: Realized (closed) + Unrealized (open)
+  // P&L Calculation: 
+  // - Realized = from closed positions (settled bets)
+  // - Unrealized = ONLY from actually open positions (current_value > 0, not redeemable)
   const realizedPnL = closedPositions.reduce((sum, p) => sum + (p.realized_pnl || 0), 0)
-  const unrealizedPnL = positions.reduce((sum, p) => sum + (p.cash_pnl || 0), 0)
+  const unrealizedPnL = openPositions.reduce((sum, p) => sum + (p.cash_pnl || 0), 0)
   const totalPnL = realizedPnL + unrealizedPnL
   
   // Calculate today's change from recent activity
