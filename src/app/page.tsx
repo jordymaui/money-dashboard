@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
 import { fetchHyperliquidState, transformPositions, fetchAllMids } from '@/lib/hyperliquid'
 import { fetchSDFPortfolio } from '@/lib/sdf'
+import { fetchAllPolymarketData } from '@/lib/polymarket'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -46,20 +46,18 @@ export default function Home() {
         }
       }
 
-      // Fetch Polymarket data from Supabase
-      const { data: polyPositions } = await supabase
-        .from('polymarket_positions')
-        .select('*')
-        .eq('redeemable', false)
-
-      const { data: closedPositions } = await supabase
-        .from('polymarket_closed_positions')
-        .select('realized_pnl')
-
-      const openPositions = polyPositions?.filter(p => (p.current_value || 0) > 0) || []
-      const portfolioValue = openPositions.reduce((sum, p) => sum + (p.current_value || 0), 0)
-      const realizedPnl = closedPositions?.reduce((sum, p) => sum + (p.realized_pnl || 0), 0) || 0
-      const unrealizedPnl = polyPositions?.reduce((sum, p) => sum + (p.cash_pnl || 0), 0) || 0
+      // Fetch Polymarket data (uses same lib as Polymarket page for consistency)
+      let polyData = { value: 0, pnl: 0, positions: 0 }
+      try {
+        const pmData = await fetchAllPolymarketData()
+        polyData = {
+          value: pmData.totalPortfolioValue || 0,
+          pnl: pmData.pnlStats?.totalPnL || 0,
+          positions: pmData.openPositions?.length || 0
+        }
+      } catch (e) {
+        console.error('Error fetching Polymarket data:', e)
+      }
 
       // Fetch SDF data from Base blockchain (includes FUN + USDC + Players)
       let sdfData = { value: 0, pnl: 0, positions: 0 }
@@ -76,11 +74,7 @@ export default function Home() {
 
       setData({
         hyperliquid: hyperliquidData,
-        polymarket: {
-          value: portfolioValue,
-          pnl: realizedPnl + unrealizedPnl,
-          positions: openPositions.length
-        },
+        polymarket: polyData,
         sdf: sdfData
       })
 
