@@ -9,11 +9,14 @@ import {
   PolymarketPosition,
   PolymarketClosedPosition,
   PolymarketActivity,
-  PnLTimelinePoint
+  PnLTimelinePoint,
+  CategoryStats,
+  PerformanceStats
 } from '@/lib/polymarket'
+import { PolymarketAnalytics } from '@/components/polymarket-analytics'
 
 type TimePeriod = '1D' | '1W' | '1M' | 'ALL'
-type TabType = 'positions' | 'orders' | 'history'
+type TabType = 'positions' | 'history'
 
 const REFRESH_INTERVAL = 60 // seconds
 
@@ -362,6 +365,11 @@ export default function PolymarketPage() {
   const [positionsValue, setPositionsValue] = useState<number>(0)
   const [pnlStats, setPnlStats] = useState({ realizedPnL: 0, unrealizedPnL: 0, totalPnL: 0, wins: 0, losses: 0 })
   const [pnlTimeline, setPnlTimeline] = useState<PnLTimelinePoint[]>([])
+  const [dailyPnL, setDailyPnL] = useState({ change: 0, changePercent: 0 })
+  const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryStats[]>([])
+  const [performanceStats, setPerformanceStats] = useState<PerformanceStats>({ 
+    totalBets: 0, winRate: 0, avgStake: 0, bestWin: 0, worstLoss: 0, profitFactor: 0, avgWin: 0, avgLoss: 0 
+  })
   const [loading, setLoading] = useState(true)
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('ALL')
   const [activeTab, setActiveTab] = useState<TabType>('positions')
@@ -379,6 +387,9 @@ export default function PolymarketPage() {
       setPositionsValue(data.positionsValue)
       setPnlStats(data.pnlStats)
       setPnlTimeline(data.timeline)
+      setDailyPnL(data.dailyPnL)
+      setCategoryBreakdown(data.categoryBreakdown)
+      setPerformanceStats(data.performanceStats)
       setCountdown(REFRESH_INTERVAL)
     } catch (err) {
       console.error('Error fetching data:', err)
@@ -414,16 +425,8 @@ export default function PolymarketPage() {
   // P&L from pre-calculated stats
   const { realizedPnL, unrealizedPnL, totalPnL, wins, losses } = pnlStats
   
-  // Calculate today's change from recent activity
-  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
-  const todayActivity = activity.filter(a => {
-    const ts = a.timestamp < 1e12 ? a.timestamp * 1000 : a.timestamp
-    return ts >= oneDayAgo
-  })
-  const todayChange = todayActivity.reduce((sum, a) => {
-    const value = a.usdcSize || (a.size * a.price)
-    return sum + (a.side === 'BUY' ? -value : value)
-  }, 0)
+  // 24hr P&L from resolved positions (fixed calculation)
+  const todayChange = dailyPnL.change
   const todayChangePercent = totalPortfolioValue > 0 ? (todayChange / totalPortfolioValue) * 100 : 0
 
   // Filter history by time period
@@ -599,18 +602,8 @@ export default function PolymarketPage() {
                 : 'text-zinc-500 border-transparent'
             )}
           >
-            Positions
-          </button>
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={cn(
-              'px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium border-b-2 -mb-[1px] transition-colors whitespace-nowrap',
-              activeTab === 'orders'
-                ? 'text-white border-white'
-                : 'text-zinc-500 border-transparent'
-            )}
-          >
-            Orders
+            <i className="fa-solid fa-chart-pie mr-2 hidden md:inline"></i>
+            Active Positions
           </button>
           <button
             onClick={() => setActiveTab('history')}
@@ -621,6 +614,7 @@ export default function PolymarketPage() {
                 : 'text-zinc-500 border-transparent'
             )}
           >
+            <i className="fa-solid fa-clock-rotate-left mr-2 hidden md:inline"></i>
             History
           </button>
         </div>
@@ -629,14 +623,6 @@ export default function PolymarketPage() {
         <div className="overflow-x-auto">
           {activeTab === 'positions' && (
             <PositionsTable positions={positions} />
-          )}
-          
-          {activeTab === 'orders' && (
-            <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
-              <i className="fa-solid fa-clock text-4xl mb-4 opacity-30"></i>
-              <p className="text-lg">No open orders</p>
-              <p className="text-sm text-zinc-600 mt-1">Your limit orders will appear here</p>
-            </div>
           )}
           
           {activeTab === 'history' && (
@@ -737,6 +723,15 @@ export default function PolymarketPage() {
             </>
           )}
         </div>
+      </div>
+
+      {/* Analytics Section */}
+      <div className="mt-4 md:mt-6">
+        <PolymarketAnalytics 
+          categoryBreakdown={categoryBreakdown}
+          performanceStats={performanceStats}
+          totalPnL={totalPnL}
+        />
       </div>
 
       {/* Stats Footer - Desktop only */}

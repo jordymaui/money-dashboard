@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { HyperliquidHeader } from '@/components/hyperliquid-header'
 import { HyperliquidDashboard } from '@/components/hyperliquid-dashboard'
+import { HyperliquidAnalytics } from '@/components/hyperliquid-analytics'
 import { fetchHyperliquidState, fetchHyperliquidFills, fetchAllMids, transformPositions, HyperliquidFill } from '@/lib/hyperliquid'
 import { HyperliquidPosition } from '@/types'
 
@@ -120,6 +121,9 @@ export default function HyperliquidPage() {
         fills={fills}
         countdown={countdown}
       />
+
+      {/* Analytics Section */}
+      <HyperliquidAnalytics fills={fills} />
 
       {/* Data Info */}
       <div className="mt-4 text-xs text-zinc-600 text-right">

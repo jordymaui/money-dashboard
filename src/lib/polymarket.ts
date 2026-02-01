@@ -303,6 +303,207 @@ export function buildPnLTimeline(
 /**
  * Fetch all Polymarket data in one call
  */
+/**
+ * Calculate 24hr P&L from resolved positions only (not from trade activity)
+ * This fixes the bug where daily P&L was calculated from buys/sells instead of actual resolved profits
+ */
+export function calculate24hrPnL(
+  positions: PolymarketPosition[],
+  closedPositions: PolymarketClosedPosition[]
+): { change: number; changePercent: number } {
+  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
+  
+  // Wins from closed positions in last 24hr
+  const recentWins = closedPositions.filter(p => {
+    const ts = p.timestamp < 1e12 ? p.timestamp * 1000 : p.timestamp
+    return ts >= oneDayAgo
+  })
+  const winPnL = recentWins.reduce((sum, p) => sum + (p.realized_pnl || 0), 0)
+  
+  // Losses from positions that resolved to 0 in last 24hr
+  const recentLosses = positions.filter(p => {
+    if ((p.current_value || 0) !== 0) return false
+    const endDate = p.end_date && p.end_date !== '1970-01-01' 
+      ? new Date(p.end_date).getTime()
+      : 0
+    return endDate >= oneDayAgo
+  })
+  const lossPnL = recentLosses.reduce((sum, p) => sum + (p.cash_pnl || 0), 0)
+  
+  const totalChange = winPnL + lossPnL
+  
+  return { change: totalChange, changePercent: 0 } // Percent calculated in component
+}
+
+/**
+ * Categorize a Polymarket market by its title
+ */
+export type MarketCategory = 'sports' | 'politics' | 'crypto' | 'culture' | 'finance' | 'other'
+
+export function categorizeMarket(title: string): MarketCategory {
+  const t = title.toLowerCase()
+  
+  // Sports keywords
+  if (/\b(nfl|nba|mlb|nhl|ufc|boxing|tennis|f1|formula|soccer|football|sports?|game|match|win|championship|playoffs?|super\s?bowl|world\s?series|grand\s?prix|premier\s?league|champions?\s?league)\b/.test(t)) {
+    return 'sports'
+  }
+  
+  // Politics keywords
+  if (/\b(trump|biden|election|congress|senate|political|president|governor|vote|republican|democrat|gop|dnc|cabinet|administration|impeach|legislation|bill\s+(pass|fail)|supreme\s?court|executive\s?order)\b/.test(t)) {
+    return 'politics'
+  }
+  
+  // Crypto keywords
+  if (/\b(btc|eth|bitcoin|ethereum|crypto|solana|sol|price|token|defi|nft|blockchain|altcoin|memecoin|doge|xrp)\b/.test(t)) {
+    return 'crypto'
+  }
+  
+  // Pop Culture keywords
+  if (/\b(oscar|grammy|emmy|movie|celebrity|album|show|entertainment|tv|netflix|streaming|billboard|box\s?office|actor|actress|singer|artist)\b/.test(t)) {
+    return 'culture'
+  }
+  
+  // Finance keywords
+  if (/\b(fed|federal\s?reserve|interest\s?rate|inflation|gdp|economy|stock|market|s&p|nasdaq|dow|recession|unemployment|cpi|fomc)\b/.test(t)) {
+    return 'finance'
+  }
+  
+  return 'other'
+}
+
+/**
+ * Get category display info
+ */
+export function getCategoryInfo(category: MarketCategory): { emoji: string; label: string; color: string } {
+  const info: Record<MarketCategory, { emoji: string; label: string; color: string }> = {
+    sports: { emoji: '🏈', label: 'Sports', color: 'text-orange-400' },
+    politics: { emoji: '🏛️', label: 'Politics', color: 'text-blue-400' },
+    crypto: { emoji: '💰', label: 'Crypto', color: 'text-yellow-400' },
+    culture: { emoji: '🎬', label: 'Culture', color: 'text-pink-400' },
+    finance: { emoji: '📈', label: 'Finance', color: 'text-green-400' },
+    other: { emoji: '📊', label: 'Other', color: 'text-zinc-400' }
+  }
+  return info[category]
+}
+
+/**
+ * Calculate analytics breakdown by category
+ */
+export interface CategoryStats {
+  category: MarketCategory
+  wins: number
+  losses: number
+  totalBets: number
+  winRate: number
+  totalPnL: number
+  roi: number
+  totalStaked: number
+}
+
+export function calculateCategoryBreakdown(
+  positions: PolymarketPosition[],
+  closedPositions: PolymarketClosedPosition[]
+): CategoryStats[] {
+  const categoryMap = new Map<MarketCategory, { wins: number; losses: number; pnl: number; staked: number }>()
+  
+  // Initialize all categories
+  const categories: MarketCategory[] = ['sports', 'politics', 'crypto', 'culture', 'finance', 'other']
+  categories.forEach(cat => categoryMap.set(cat, { wins: 0, losses: 0, pnl: 0, staked: 0 }))
+  
+  // Process closed positions (winners)
+  closedPositions.forEach(p => {
+    const category = categorizeMarket(p.title || '')
+    const stats = categoryMap.get(category)!
+    if ((p.realized_pnl || 0) > 0) {
+      stats.wins++
+      stats.pnl += p.realized_pnl || 0
+    } else if ((p.realized_pnl || 0) < 0) {
+      stats.losses++
+      stats.pnl += p.realized_pnl || 0
+    }
+    stats.staked += p.total_bought || 0
+  })
+  
+  // Process resolved losses from positions
+  positions.filter(p => (p.current_value || 0) === 0 && (p.cash_pnl || 0) < 0).forEach(p => {
+    const category = categorizeMarket(p.title || '')
+    const stats = categoryMap.get(category)!
+    stats.losses++
+    stats.pnl += p.cash_pnl || 0
+    stats.staked += p.total_bought || 0
+  })
+  
+  // Convert to array and calculate derived stats
+  return categories
+    .map(category => {
+      const stats = categoryMap.get(category)!
+      const totalBets = stats.wins + stats.losses
+      return {
+        category,
+        wins: stats.wins,
+        losses: stats.losses,
+        totalBets,
+        winRate: totalBets > 0 ? (stats.wins / totalBets) * 100 : 0,
+        totalPnL: stats.pnl,
+        roi: stats.staked > 0 ? (stats.pnl / stats.staked) * 100 : 0,
+        totalStaked: stats.staked
+      }
+    })
+    .filter(s => s.totalBets > 0) // Only show categories with bets
+    .sort((a, b) => b.totalPnL - a.totalPnL) // Sort by P&L descending
+}
+
+/**
+ * Calculate overall performance stats
+ */
+export interface PerformanceStats {
+  totalBets: number
+  winRate: number
+  avgStake: number
+  bestWin: number
+  worstLoss: number
+  profitFactor: number
+  avgWin: number
+  avgLoss: number
+}
+
+export function calculatePerformanceStats(
+  positions: PolymarketPosition[],
+  closedPositions: PolymarketClosedPosition[]
+): PerformanceStats {
+  const allPnLs: number[] = []
+  const allStakes: number[] = []
+  
+  // Closed positions
+  closedPositions.forEach(p => {
+    allPnLs.push(p.realized_pnl || 0)
+    allStakes.push(p.total_bought || 0)
+  })
+  
+  // Resolved losses
+  positions.filter(p => (p.current_value || 0) === 0 && (p.cash_pnl || 0) !== 0).forEach(p => {
+    allPnLs.push(p.cash_pnl || 0)
+    allStakes.push(p.total_bought || 0)
+  })
+  
+  const wins = allPnLs.filter(p => p > 0)
+  const losses = allPnLs.filter(p => p < 0)
+  
+  const totalWins = wins.reduce((s, v) => s + v, 0)
+  const totalLosses = Math.abs(losses.reduce((s, v) => s + v, 0))
+  
+  return {
+    totalBets: allPnLs.length,
+    winRate: allPnLs.length > 0 ? (wins.length / allPnLs.length) * 100 : 0,
+    avgStake: allStakes.length > 0 ? allStakes.reduce((s, v) => s + v, 0) / allStakes.length : 0,
+    bestWin: wins.length > 0 ? Math.max(...wins) : 0,
+    worstLoss: losses.length > 0 ? Math.min(...losses) : 0,
+    profitFactor: totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? Infinity : 0,
+    avgWin: wins.length > 0 ? totalWins / wins.length : 0,
+    avgLoss: losses.length > 0 ? totalLosses / losses.length : 0
+  }
+}
+
 export async function fetchAllPolymarketData() {
   const [usdcBalance, positions, closedPositions, activity] = await Promise.all([
     fetchPolymarketUSDCBalance(),
@@ -313,6 +514,9 @@ export async function fetchAllPolymarketData() {
   
   const pnlStats = calculatePnL(positions, closedPositions)
   const timeline = buildPnLTimeline(positions, closedPositions)
+  const dailyPnL = calculate24hrPnL(positions, closedPositions)
+  const categoryBreakdown = calculateCategoryBreakdown(positions, closedPositions)
+  const performanceStats = calculatePerformanceStats(positions, closedPositions)
   
   // Open positions
   const openPositions = positions.filter(p => (p.current_value || 0) > 0 && !p.redeemable)
@@ -327,6 +531,9 @@ export async function fetchAllPolymarketData() {
     closedPositions,
     activity,
     pnlStats,
-    timeline
+    timeline,
+    dailyPnL,
+    categoryBreakdown,
+    performanceStats
   }
 }
