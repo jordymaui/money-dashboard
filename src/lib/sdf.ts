@@ -18,7 +18,7 @@ export const SDF_WALLET = '0xFc1A8921eA05bEC9ceb536f8aEE02AF881D72F6B'
 const BASE_RPC = 'https://base.gateway.tenderly.co'
 const COINGECKO_API = 'https://api.coingecko.com/api/v3'
 
-// Player name mappings (from rykz data)
+// Football player name mappings
 const FOOTBALL_PLAYERS: Record<string, string> = {
   '550864': 'Leny Yoro', '212769': 'Unai Simón', '220566': 'Rodrigo Hernández', '195851': 'Scott McTominay',
   '521052': 'Daniel Svensson', '171387': 'Manuel Locatelli', '93661': 'Giovanni Di Lorenzo', '220325': 'Jules Koundé',
@@ -55,6 +55,34 @@ const FOOTBALL_PLAYERS: Record<string, string> = {
   '61366': 'Kevin De Bruyne', '126551': 'Alessio Romagnoli', '470313': 'Nick Woltemade', '118342': 'Mark Flekken',
   '466006': 'Malik Tillman', '204936': 'Gianluigi Donnarumma', '494595': 'Florian Wirtz', '223760': 'Achraf Hakimi',
   '215059': 'Robert Sánchez', '470836': 'Nico Schlotterbeck', '111732': 'Hakan Çalhanoğlu', '20388': 'Manuel Neuer',
+}
+
+// NFL player name mappings
+const NFL_PLAYERS: Record<string, string> = {
+  '543182829': 'Travis Kelce', '1029815641': 'Alvin Kamara', '1955323065': 'Amon-Ra St. Brown',
+  '184212668': 'J.K. Dobbins', '1708223670': 'Bucky Irving', '2018186111': 'A.J. Brown',
+  '1953241833': 'Jake Ferguson', '1207389650': 'Jaylen Warren', '608240281': 'Drake Maye',
+  '892204822': 'Tetairoa McMillan', '33526712': 'Derrick Henry', '403250563': 'Baker Mayfield',
+  '1591779333': 'Rico Dowdle', '344873876': 'Puka Nacua', '298000720': 'Jahmyr Gibbs',
+  '401615555': 'Lamar Jackson', '350071857': 'Rashee Rice', '1229893067': 'Ashton Jeanty',
+  '1809188809': 'DK Metcalf', '1561296583': 'Chase Brown', '942484606': 'Zay Flowers',
+  '1965487160': 'Rome Odunze', '1094525731': 'Chris Olave', '202647757': 'Sam LaPorta',
+  '2050898691': 'Christian McCaffrey', '1511237082': 'Josh Jacobs', '1986714215': 'Courtland Sutton',
+  '626101435': 'Travis Etienne Jr.', '1096457743': "D'Andre Swift", '268596935': 'Tyler Warren',
+  '769476837': 'Dak Prescott', '1704342915': 'Kyren Williams', '1835372287': 'Omarion Hampton',
+  '1924940894': 'Jaylen Waddle', '1892649533': 'Stefon Diggs', '1257875488': 'George Kittle',
+  '1631265816': 'Khalil Shakir', '972599423': 'Brock Bowers', '1378093404': 'Dalton Kincaid',
+  '1634868202': 'Kenneth Walker III', '2078797761': 'Mark Andrews', '708089183': 'Oronde Gadsden',
+  '509502421': 'Isiah Pacheco', '1049357910': 'Dallas Goedert', '1072658622': 'Javonte Williams',
+  '88065636': 'Jordan Love', '1627881947': 'Jared Goff', '1737560144': 'Nico Collins',
+  '79420307': 'Jalen Hurts', '656282335': "De'Von Achane", '363339787': 'Emeka Egbuka',
+  '532139037': 'James Cook III', '946323199': 'Hunter Henry', '1597935612': 'Trey McBride',
+  '1045355498': 'Jonathan Taylor', '850942466': 'CeeDee Lamb', '439100286': 'Jaxon Smith-Njigba',
+  '2111895848': 'Garrett Wilson', '1613245508': 'Saquon Barkley', '1987964071': 'Justin Jefferson',
+  '1886297532': 'Caleb Williams', '1877680294': 'Bijan Robinson', '67997479': 'Josh Allen',
+  '1339944146': 'Drake London', '1694187555': "Ja'Marr Chase", '833812969': 'Bo Nix',
+  '1957905857': 'Ladd McConkey', '646914359': 'Patrick Mahomes', '637063064': 'TreVeyon Henderson',
+  '679992678': 'Brian Thomas Jr.', '280776288': 'Michael Pittman Jr.', '1733678391': 'Justin Herbert',
 }
 
 // ABIs
@@ -114,6 +142,94 @@ export async function fetchFunPrice(): Promise<number> {
   }
 }
 
+// Fetch player holdings and prices for one game type
+async function fetchGameHoldings(
+  multicall: ethers.Contract,
+  playerIface: ethers.Interface,
+  dexIface: ethers.Interface,
+  wallet: string,
+  playerContract: string,
+  dexContract: string,
+  playerMap: Record<string, string>,
+  gameType: 'FDF' | 'NFL'
+): Promise<PlayerShare[]> {
+  const playerIds = Object.keys(playerMap)
+  
+  // Build multicall for all balance checks
+  const balanceCalls = playerIds.map(id => ({
+    target: playerContract,
+    allowFailure: true,
+    callData: playerIface.encodeFunctionData('balanceOf', [wallet, id])
+  }))
+  
+  const balanceResults = await multicall.aggregate3.staticCall(balanceCalls)
+  
+  // Find non-zero holdings
+  const holdings: { id: string; balance: bigint }[] = []
+  for (let i = 0; i < balanceResults.length; i++) {
+    const [success, data] = balanceResults[i]
+    if (success && data !== '0x') {
+      try {
+        const balance = playerIface.decodeFunctionResult('balanceOf', data)[0]
+        if (balance > 0n) {
+          holdings.push({ id: playerIds[i], balance })
+        }
+      } catch {}
+    }
+  }
+  
+  if (holdings.length === 0) return []
+  
+  // Get prices for holdings
+  const priceCalls = holdings.flatMap(h => [
+    { target: dexContract, allowFailure: true, callData: dexIface.encodeFunctionData('currencyReservesByPlayerId', [h.id]) },
+    { target: playerContract, allowFailure: true, callData: playerIface.encodeFunctionData('balanceOf', [dexContract, h.id]) }
+  ])
+  
+  const priceResults = await multicall.aggregate3.staticCall(priceCalls)
+  
+  const playerShares: PlayerShare[] = []
+  
+  for (let i = 0; i < holdings.length; i++) {
+    const h = holdings[i]
+    const currRes = priceResults[i * 2]
+    const tokRes = priceResults[i * 2 + 1]
+    
+    let currencyReserve = 0n, tokenReserve = 0n
+    if (currRes[0] && currRes[1] !== '0x') {
+      try { currencyReserve = dexIface.decodeFunctionResult('currencyReservesByPlayerId', currRes[1])[0] } catch {}
+    }
+    if (tokRes[0] && tokRes[1] !== '0x') {
+      try { tokenReserve = playerIface.decodeFunctionResult('balanceOf', tokRes[1])[0] } catch {}
+    }
+    
+    let priceUsd = 0
+    if (tokenReserve > 0n) {
+      priceUsd = Number((currencyReserve * BigInt(1e18)) / tokenReserve) / 1e6
+    }
+    
+    const balanceFormatted = Number(h.balance) / 1e18
+    const valueUsd = balanceFormatted * priceUsd
+    
+    playerShares.push({
+      tokenId: h.id,
+      contractAddress: playerContract,
+      balance: h.balance.toString(),
+      balanceFormatted,
+      gameType,
+      playerName: playerMap[h.id] || `Player #${h.id}`,
+      priceUsd,
+      valueUsd,
+      poolLiquidity: Number(currencyReserve) / 1e6
+    })
+  }
+  
+  // Sort by value
+  playerShares.sort((a, b) => (b.valueUsd || 0) - (a.valueUsd || 0))
+  
+  return playerShares
+}
+
 // Fetch complete SDF portfolio using Multicall
 export async function fetchSDFPortfolio(wallet: string = SDF_WALLET): Promise<SDFPortfolio> {
   try {
@@ -123,106 +239,37 @@ export async function fetchSDFPortfolio(wallet: string = SDF_WALLET): Promise<SD
     const tokenIface = new ethers.Interface(ERC20_ABI)
     const dexIface = new ethers.Interface(DEX_ABI)
     
-    const playerIds = Object.keys(FOOTBALL_PLAYERS)
-    
-    // Build multicall: FUN balance + USDC balance + all player balances
-    const calls = [
-      // FUN token balance
+    // Fetch FUN and USDC balances
+    const tokenCalls = [
       { target: SDF_CONTRACTS.FUN_TOKEN, allowFailure: true, callData: tokenIface.encodeFunctionData('balanceOf', [wallet]) },
-      // USDC balance
       { target: SDF_CONTRACTS.USDC, allowFailure: true, callData: tokenIface.encodeFunctionData('balanceOf', [wallet]) },
-      // All player balances
-      ...playerIds.map(id => ({
-        target: SDF_CONTRACTS.FDF_PLAYERS,
-        allowFailure: true,
-        callData: playerIface.encodeFunctionData('balanceOf', [wallet, id])
-      }))
     ]
     
-    const results = await multicall.aggregate3.staticCall(calls)
+    const [tokenResults, fdfHoldings, nflHoldings, funPrice] = await Promise.all([
+      multicall.aggregate3.staticCall(tokenCalls),
+      fetchGameHoldings(multicall, playerIface, dexIface, wallet, SDF_CONTRACTS.FDF_PLAYERS, SDF_CONTRACTS.FDF_DEX, FOOTBALL_PLAYERS, 'FDF'),
+      fetchGameHoldings(multicall, playerIface, dexIface, wallet, SDF_CONTRACTS.NFL_PLAYERS, SDF_CONTRACTS.NFL_DEX, NFL_PLAYERS, 'NFL'),
+      fetchFunPrice()
+    ])
     
-    // Parse FUN balance
+    // Parse token balances
     let funBalance = 0n
-    if (results[0][0] && results[0][1] !== '0x') {
-      try { funBalance = tokenIface.decodeFunctionResult('balanceOf', results[0][1])[0] } catch {}
+    if (tokenResults[0][0] && tokenResults[0][1] !== '0x') {
+      try { funBalance = tokenIface.decodeFunctionResult('balanceOf', tokenResults[0][1])[0] } catch {}
     }
     
-    // Parse USDC balance
     let usdcBalance = 0n
-    if (results[1][0] && results[1][1] !== '0x') {
-      try { usdcBalance = tokenIface.decodeFunctionResult('balanceOf', results[1][1])[0] } catch {}
+    if (tokenResults[1][0] && tokenResults[1][1] !== '0x') {
+      try { usdcBalance = tokenIface.decodeFunctionResult('balanceOf', tokenResults[1][1])[0] } catch {}
     }
     
-    // Find players with non-zero balances
-    const holdings: { id: string; balance: bigint }[] = []
-    for (let i = 0; i < playerIds.length; i++) {
-      const r = results[i + 2]
-      if (r[0] && r[1] !== '0x') {
-        try {
-          const balance = playerIface.decodeFunctionResult('balanceOf', r[1])[0]
-          if (balance > 0n) {
-            holdings.push({ id: playerIds[i], balance })
-          }
-        } catch {}
-      }
-    }
-    
-    // Get prices for holdings
-    const playerShares: PlayerShare[] = []
-    let totalPlayersValue = 0
-    
-    if (holdings.length > 0) {
-      const priceCalls = holdings.flatMap(h => [
-        { target: SDF_CONTRACTS.FDF_DEX, allowFailure: true, callData: dexIface.encodeFunctionData('currencyReservesByPlayerId', [h.id]) },
-        { target: SDF_CONTRACTS.FDF_PLAYERS, allowFailure: true, callData: playerIface.encodeFunctionData('balanceOf', [SDF_CONTRACTS.FDF_DEX, h.id]) }
-      ])
-      
-      const priceResults = await multicall.aggregate3.staticCall(priceCalls)
-      
-      for (let i = 0; i < holdings.length; i++) {
-        const h = holdings[i]
-        const currRes = priceResults[i * 2]
-        const tokRes = priceResults[i * 2 + 1]
-        
-        let currencyReserve = 0n, tokenReserve = 0n
-        if (currRes[0] && currRes[1] !== '0x') {
-          try { currencyReserve = dexIface.decodeFunctionResult('currencyReservesByPlayerId', currRes[1])[0] } catch {}
-        }
-        if (tokRes[0] && tokRes[1] !== '0x') {
-          try { tokenReserve = playerIface.decodeFunctionResult('balanceOf', tokRes[1])[0] } catch {}
-        }
-        
-        let priceUsd = 0
-        if (tokenReserve > 0n) {
-          priceUsd = Number((currencyReserve * BigInt(1e18)) / tokenReserve) / 1e6
-        }
-        
-        const balanceFormatted = Number(h.balance) / 1e18
-        const valueUsd = balanceFormatted * priceUsd
-        totalPlayersValue += valueUsd
-        
-        playerShares.push({
-          tokenId: h.id,
-          contractAddress: SDF_CONTRACTS.FDF_PLAYERS,
-          balance: h.balance.toString(),
-          balanceFormatted,
-          gameType: 'FDF',
-          playerName: FOOTBALL_PLAYERS[h.id] || `Player #${h.id}`,
-          priceUsd,
-          valueUsd,
-          poolLiquidity: Number(currencyReserve) / 1e6
-        })
-      }
-      
-      // Sort by value
-      playerShares.sort((a, b) => (b.valueUsd || 0) - (a.valueUsd || 0))
-    }
-    
-    // Get FUN price
-    const funPrice = await fetchFunPrice()
     const funBalanceFormatted = Number(funBalance) / 1e18
     const funValue = funBalanceFormatted * funPrice
     const usdcBalanceFormatted = Number(usdcBalance) / 1e6
+    
+    // Combine all player shares
+    const allPlayerShares = [...fdfHoldings, ...nflHoldings]
+    const totalPlayersValue = allPlayerShares.reduce((sum, p) => sum + (p.valueUsd || 0), 0)
     
     return {
       wallet,
@@ -246,7 +293,7 @@ export async function fetchSDFPortfolio(wallet: string = SDF_WALLET): Promise<SD
         priceUsd: 1,
         valueUsd: usdcBalanceFormatted
       },
-      playerShares,
+      playerShares: allPlayerShares,
       totalFunValue: funValue,
       totalPlayersValue,
       totalPortfolioValue: funValue + usdcBalanceFormatted + totalPlayersValue,
