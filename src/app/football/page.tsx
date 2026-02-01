@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchSDFPortfolio, SDFPortfolio, SDF_WALLET, SDF_CONTRACTS, fetchFunPrice } from '@/lib/sdf'
 import Link from 'next/link'
-import { cn } from '@/lib/utils'
 
 const REFRESH_INTERVAL = 60 // seconds
 
@@ -11,7 +10,7 @@ function formatCurrency(value: number, decimals = 2): string {
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`
 }
 
-function formatNumber(value: number, decimals = 2): string {
+function formatNumber(value: number, decimals = 0): string {
   return value.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 }
 
@@ -21,18 +20,13 @@ function shortenAddress(address: string): string {
 
 export default function FootballPage() {
   const [portfolio, setPortfolio] = useState<SDFPortfolio | null>(null)
-  const [funPrice, setFunPrice] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
 
   const fetchData = useCallback(async () => {
     try {
-      const [portfolioData, price] = await Promise.all([
-        fetchSDFPortfolio(),
-        fetchFunPrice()
-      ])
+      const portfolioData = await fetchSDFPortfolio()
       setPortfolio(portfolioData)
-      setFunPrice(price)
       setCountdown(REFRESH_INTERVAL)
     } catch (error) {
       console.error('Error fetching SDF data:', error)
@@ -55,17 +49,8 @@ export default function FootballPage() {
         return prev - 1
       })
     }, 1000)
-
     return () => clearInterval(timer)
   }, [fetchData])
-
-  const funBalance = portfolio?.funToken?.balanceFormatted || 0
-  const funValue = funBalance * funPrice
-  const usdcBalance = portfolio?.usdcBalance?.balanceFormatted || 0
-  const totalValue = funValue + usdcBalance
-  const playerCount = portfolio?.playerShares.length || 0
-  const fdfPlayers = portfolio?.playerShares.filter(p => p.gameType === 'FDF') || []
-  const nflPlayers = portfolio?.playerShares.filter(p => p.gameType === 'NFL') || []
 
   if (loading) {
     return (
@@ -80,6 +65,14 @@ export default function FootballPage() {
     )
   }
 
+  const funBalance = portfolio?.funToken?.balanceFormatted || 0
+  const funPrice = portfolio?.funToken?.priceUsd || 0
+  const funValue = portfolio?.funToken?.valueUsd || 0
+  const usdcBalance = portfolio?.usdcBalance?.balanceFormatted || 0
+  const playerCount = portfolio?.playerShares.length || 0
+  const playersValue = portfolio?.totalPlayersValue || 0
+  const totalValue = portfolio?.totalPortfolioValue || 0
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-6xl">
       {/* Header */}
@@ -91,13 +84,12 @@ export default function FootballPage() {
           <i className="fa-solid fa-arrow-left"></i> Back
         </Link>
         <div className="flex items-center gap-3">
-          {/* Refresh Timer */}
           <div className="flex items-center gap-2 bg-zinc-800/50 rounded-lg px-3 py-2 border border-zinc-700/50">
             <div className="relative w-5 h-5">
               <svg className="w-5 h-5 -rotate-90" viewBox="0 0 20 20">
                 <circle cx="10" cy="10" r="8" fill="none" stroke="#3f3f46" strokeWidth="2" />
                 <circle
-                  cx="10" cy="10" r="8" fill="none" stroke="#ffffff" strokeWidth="2"
+                  cx="10" cy="10" r="8" fill="none" stroke="#22c55e" strokeWidth="2"
                   strokeDasharray={`${(countdown / REFRESH_INTERVAL) * 50.27} 50.27`}
                   strokeLinecap="round"
                 />
@@ -109,7 +101,7 @@ export default function FootballPage() {
             href="https://sport.fun"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-zinc-200 rounded-lg text-sm font-medium text-zinc-900 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium text-white transition-colors"
           >
             <i className="fa-solid fa-futbol"></i> Play
           </a>
@@ -122,7 +114,7 @@ export default function FootballPage() {
           {/* Left Side - Portfolio Value */}
           <div className="lg:w-1/3">
             <div className="flex items-center gap-2 mb-2">
-              <i className="fa-solid fa-futbol text-white"></i>
+              <i className="fa-solid fa-futbol text-emerald-400"></i>
               <span className="text-zinc-400 text-sm">SDF Portfolio</span>
             </div>
             
@@ -150,11 +142,24 @@ export default function FootballPage() {
           <div className="lg:w-2/3 grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-zinc-800/30 rounded-lg p-4">
               <div className="text-zinc-500 text-xs mb-1">
+                <i className="fa-solid fa-users mr-1"></i>
+                Player Holdings
+              </div>
+              <div className="text-xl font-bold text-white font-mono">
+                {formatCurrency(playersValue)}
+              </div>
+              <div className="text-xs text-zinc-500">
+                {playerCount} players
+              </div>
+            </div>
+
+            <div className="bg-zinc-800/30 rounded-lg p-4">
+              <div className="text-zinc-500 text-xs mb-1">
                 <i className="fa-solid fa-coins mr-1"></i>
                 $FUN Balance
               </div>
               <div className="text-xl font-bold text-white font-mono">
-                {formatNumber(funBalance, 0)}
+                {formatNumber(funBalance)}
               </div>
               <div className="text-xs text-zinc-500">
                 ≈ {formatCurrency(funValue)}
@@ -187,129 +192,92 @@ export default function FootballPage() {
                 In-game
               </div>
             </div>
-
-            <div className="bg-zinc-800/30 rounded-lg p-4">
-              <div className="text-zinc-500 text-xs mb-1">
-                <i className="fa-solid fa-users mr-1"></i>
-                Player Shares
-              </div>
-              <div className="text-xl font-bold text-white font-mono">
-                {playerCount}
-              </div>
-              <div className="text-xs text-zinc-500">
-                {fdfPlayers.length} FDF · {nflPlayers.length} NFL
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Player Shares Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* FDF Players */}
-        <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 overflow-hidden">
-          <div className="p-4 border-b border-zinc-800/50 flex items-center justify-between">
-            <h3 className="font-medium text-white flex items-center gap-2">
-              <i className="fa-solid fa-futbol"></i>
-              Football Players (FDF)
-            </h3>
-            <span className="text-xs text-zinc-500">{fdfPlayers.length} positions</span>
-          </div>
-          <div className="max-h-[400px] overflow-y-auto">
-            {fdfPlayers.length === 0 ? (
-              <div className="p-8 text-center text-zinc-500">
-                <i className="fa-solid fa-inbox text-3xl mb-3 opacity-30 block"></i>
-                No FDF player shares
-              </div>
-            ) : (
-              <table className="w-full">
-                <thead className="sticky top-0 bg-zinc-900">
-                  <tr className="text-xs text-zinc-500 border-b border-zinc-800/50">
-                    <th className="px-4 py-2 text-left">Player ID</th>
-                    <th className="px-4 py-2 text-right">Shares</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {fdfPlayers.map((player, idx) => (
-                    <tr key={`${player.tokenId}-${idx}`} className="border-b border-zinc-800/30 hover:bg-zinc-800/20">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 flex items-center justify-center">
-                            <i className="fa-solid fa-user text-emerald-400 text-xs"></i>
-                          </div>
-                          <div>
-                            <div className="text-white text-sm font-mono">#{player.tokenId}</div>
-                            <div className="text-xs text-zinc-500">{player.playerName || 'Unknown Player'}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className="text-white font-mono">{formatNumber(player.balanceFormatted, 2)}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+      {/* Player Holdings Table */}
+      <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 overflow-hidden mb-6">
+        <div className="p-4 border-b border-zinc-800/50 flex items-center justify-between">
+          <h3 className="font-medium text-white flex items-center gap-2">
+            <i className="fa-solid fa-futbol text-emerald-400"></i>
+            Football Players
+          </h3>
+          <span className="text-xs text-zinc-500">{playerCount} positions • {formatCurrency(playersValue)} total</span>
         </div>
-
-        {/* NFL Players */}
-        <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 overflow-hidden">
-          <div className="p-4 border-b border-zinc-800/50 flex items-center justify-between">
-            <h3 className="font-medium text-white flex items-center gap-2">
-              <i className="fa-solid fa-football"></i>
-              NFL Players
-            </h3>
-            <span className="text-xs text-zinc-500">{nflPlayers.length} positions</span>
-          </div>
-          <div className="max-h-[400px] overflow-y-auto">
-            {nflPlayers.length === 0 ? (
-              <div className="p-8 text-center text-zinc-500">
-                <i className="fa-solid fa-inbox text-3xl mb-3 opacity-30 block"></i>
-                No NFL player shares
-              </div>
-            ) : (
-              <table className="w-full">
-                <thead className="sticky top-0 bg-zinc-900">
-                  <tr className="text-xs text-zinc-500 border-b border-zinc-800/50">
-                    <th className="px-4 py-2 text-left">Player ID</th>
-                    <th className="px-4 py-2 text-right">Shares</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {nflPlayers.map((player, idx) => (
-                    <tr key={`${player.tokenId}-${idx}`} className="border-b border-zinc-800/30 hover:bg-zinc-800/20">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500/20 to-orange-600/10 flex items-center justify-center">
-                            <i className="fa-solid fa-user text-orange-400 text-xs"></i>
-                          </div>
-                          <div>
-                            <div className="text-white text-sm font-mono">#{player.tokenId}</div>
-                            <div className="text-xs text-zinc-500">{player.playerName || 'Unknown Player'}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className="text-white font-mono">{formatNumber(player.balanceFormatted, 2)}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="sticky top-0 bg-zinc-900">
+              <tr className="text-xs text-zinc-500 border-b border-zinc-800/50">
+                <th className="px-4 py-3 text-left">#</th>
+                <th className="px-4 py-3 text-left">Player</th>
+                <th className="px-4 py-3 text-right">Shares</th>
+                <th className="px-4 py-3 text-right">Price</th>
+                <th className="px-4 py-3 text-right">Value</th>
+                <th className="px-4 py-3 text-right">Pool</th>
+              </tr>
+            </thead>
+            <tbody>
+              {portfolio?.playerShares.map((player, idx) => (
+                <tr key={player.tokenId} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
+                  <td className="px-4 py-3 text-zinc-500 text-sm">{idx + 1}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 flex items-center justify-center">
+                        <i className="fa-solid fa-user text-emerald-400 text-sm"></i>
+                      </div>
+                      <div>
+                        <div className="text-white font-medium">{player.playerName}</div>
+                        <div className="text-xs text-zinc-500">#{player.tokenId}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <span className="text-white font-mono">{formatNumber(player.balanceFormatted)}</span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {player.priceUsd && player.priceUsd > 0 ? (
+                      <span className="text-emerald-400 font-mono">${player.priceUsd.toFixed(4)}</span>
+                    ) : (
+                      <span className="text-zinc-600">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {player.valueUsd && player.valueUsd > 0 ? (
+                      <span className="text-white font-mono font-medium">{formatCurrency(player.valueUsd)}</span>
+                    ) : (
+                      <span className="text-zinc-600 text-sm">No pool</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {player.poolLiquidity && player.poolLiquidity > 0 ? (
+                      <span className="text-zinc-500 font-mono text-sm">${formatNumber(player.poolLiquidity / 1000, 1)}k</span>
+                    ) : (
+                      <span className="text-zinc-600">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+        
+        {(!portfolio?.playerShares || portfolio.playerShares.length === 0) && (
+          <div className="p-8 text-center text-zinc-500">
+            <i className="fa-solid fa-inbox text-3xl mb-3 opacity-30 block"></i>
+            No player holdings found
+          </div>
+        )}
       </div>
 
       {/* Contract Info */}
       <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-4">
-        <h3 className="font-medium text-white mb-3 flex items-center gap-2">
-          <i className="fa-solid fa-file-contract"></i>
-          Contract Addresses
+        <h3 className="font-medium text-white mb-3 flex items-center gap-2 text-sm">
+          <i className="fa-solid fa-file-contract text-zinc-500"></i>
+          Contracts
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
           <div>
             <div className="text-zinc-500 mb-1">$FUN Token</div>
             <a 
@@ -318,36 +286,36 @@ export default function FootballPage() {
               rel="noopener noreferrer"
               className="text-emerald-400 hover:text-emerald-300 font-mono"
             >
-              {shortenAddress(SDF_CONTRACTS.FUN_TOKEN)} <i className="fa-solid fa-external-link ml-1"></i>
+              {shortenAddress(SDF_CONTRACTS.FUN_TOKEN)}
             </a>
           </div>
           <div>
-            <div className="text-zinc-500 mb-1">FDF Players</div>
+            <div className="text-zinc-500 mb-1">Players (ERC1155)</div>
             <a 
               href={`https://basescan.org/address/${SDF_CONTRACTS.FDF_PLAYERS}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-emerald-400 hover:text-emerald-300 font-mono"
             >
-              {shortenAddress(SDF_CONTRACTS.FDF_PLAYERS)} <i className="fa-solid fa-external-link ml-1"></i>
+              {shortenAddress(SDF_CONTRACTS.FDF_PLAYERS)}
             </a>
           </div>
           <div>
-            <div className="text-zinc-500 mb-1">NFL Players</div>
+            <div className="text-zinc-500 mb-1">DEX (AMM)</div>
             <a 
-              href={`https://basescan.org/address/${SDF_CONTRACTS.NFL_PLAYERS}`}
+              href={`https://basescan.org/address/${SDF_CONTRACTS.FDF_DEX}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-orange-400 hover:text-orange-300 font-mono"
+              className="text-emerald-400 hover:text-emerald-300 font-mono"
             >
-              {shortenAddress(SDF_CONTRACTS.NFL_PLAYERS)} <i className="fa-solid fa-external-link ml-1"></i>
+              {shortenAddress(SDF_CONTRACTS.FDF_DEX)}
             </a>
           </div>
           <div>
             <div className="text-zinc-500 mb-1">Data Source</div>
             <span className="text-zinc-400 font-mono">
               <i className="fa-solid fa-cube mr-1"></i>
-              Base Blockscout
+              Multicall3
             </span>
           </div>
         </div>
@@ -356,12 +324,7 @@ export default function FootballPage() {
       {/* Footer */}
       <div className="mt-4 text-xs text-zinc-600 text-center">
         <i className="fa-solid fa-bolt mr-1"></i>
-        Live data from Base blockchain via Blockscout API
-        {portfolio?.lastUpdated && (
-          <span className="ml-2">
-            · Last updated: {portfolio.lastUpdated.toLocaleTimeString()}
-          </span>
-        )}
+        Live prices from Base DEX via Multicall3 • Auto-refresh every 60s
       </div>
     </div>
   )
