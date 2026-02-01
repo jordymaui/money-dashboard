@@ -88,9 +88,10 @@ function calculateAnalytics(fills: HyperliquidFill[]) {
     .sort((a, b) => b.totalPnL - a.totalPnL)
     .slice(0, 10) // Top 10 assets
   
-  // Direction breakdown
-  const longTrades = closedTrades.filter(f => f.side === 'B' || f.dir?.includes('Long'))
-  const shortTrades = closedTrades.filter(f => f.side === 'A' || f.dir?.includes('Short'))
+  // Direction breakdown - use dir field which contains "Open Long", "Close Long", "Open Short", "Close Short"
+  // Only the dir field correctly identifies the position direction
+  const longTrades = closedTrades.filter(f => f.dir?.includes('Long'))
+  const shortTrades = closedTrades.filter(f => f.dir?.includes('Short'))
   
   const calcDirectionStats = (trades: HyperliquidFill[], direction: 'LONG' | 'SHORT'): DirectionStats => {
     const wins = trades.filter(t => parseFloat(t.closedPnl) > 0).length

@@ -64,31 +64,38 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 export function PolymarketChart({ 
   timeline,
-  totalPnL,
-  realizedPnL,
+  totalPnL: allTimePnL,
+  realizedPnL: allTimeRealizedPnL,
   unrealizedPnL,
-  wins,
-  losses,
+  wins: allTimeWins,
+  losses: allTimeLosses,
   timePeriod,
   onTimePeriodChange
 }: PolymarketChartProps) {
   
-  // Filter timeline by time period and format for chart
-  const chartData = useMemo(() => {
-    const periodMs = {
-      '1D': 24 * 60 * 60 * 1000,
-      '1W': 7 * 24 * 60 * 60 * 1000,
-      '1M': 30 * 24 * 60 * 60 * 1000,
-      'ALL': Date.now()
-    }
-    
+  const periodMs = {
+    '1D': 24 * 60 * 60 * 1000,
+    '1W': 7 * 24 * 60 * 60 * 1000,
+    '1M': 30 * 24 * 60 * 60 * 1000,
+    'ALL': Date.now()
+  }
+  
+  // Calculate time-filtered P&L stats
+  const { chartData, periodPnL, periodWins, periodLosses } = useMemo(() => {
     const now = Date.now()
     const cutoff = now - periodMs[timePeriod]
     
     // Filter by time period
     const filtered = timeline.filter(p => p.timestamp >= cutoff)
     
-    if (filtered.length === 0) return []
+    // Calculate period-specific P&L and win/loss record
+    const periodPnL = filtered.reduce((sum, p) => sum + p.pnl, 0)
+    const periodWins = filtered.filter(p => p.type === 'win').length
+    const periodLosses = filtered.filter(p => p.type === 'loss').length
+    
+    if (filtered.length === 0) {
+      return { chartData: [], periodPnL: 0, periodWins: 0, periodLosses: 0 }
+    }
     
     // Recalculate cumulative P&L from filtered start
     let cumulative = 0
@@ -99,7 +106,7 @@ export function PolymarketChart({
       cumulative = beforeCutoff.reduce((sum, p) => sum + p.pnl, 0)
     }
     
-    return filtered.map(point => {
+    const chartData = filtered.map(point => {
       cumulative += point.pnl
       return {
         timestamp: point.timestamp,
@@ -114,9 +121,16 @@ export function PolymarketChart({
         title: point.title
       }
     })
+    
+    return { chartData, periodPnL, periodWins, periodLosses }
   }, [timeline, timePeriod])
 
-  const isPositive = totalPnL >= 0
+  // Use period-specific stats when not ALL, otherwise use all-time stats
+  const displayPnL = timePeriod === 'ALL' ? allTimePnL : periodPnL
+  const displayWins = timePeriod === 'ALL' ? allTimeWins : periodWins
+  const displayLosses = timePeriod === 'ALL' ? allTimeLosses : periodLosses
+  
+  const isPositive = displayPnL >= 0
   const gradientId = 'polymarket-gradient'
 
   return (
@@ -125,20 +139,20 @@ export function PolymarketChart({
       <div className="md:hidden p-3 border-b border-zinc-800/50 space-y-3">
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Total P&L</div>
+            <div className="text-[10px] text-zinc-500 uppercase tracking-wide">{timePeriod === 'ALL' ? 'Total' : timePeriod} P&L</div>
             <div className={cn(
               'text-2xl font-bold font-mono',
               isPositive ? 'text-green-400' : 'text-red-400'
             )}>
-              {isPositive ? '+' : ''}{formatCurrency(totalPnL)}
+              {isPositive ? '+' : ''}{formatCurrency(displayPnL)}
             </div>
           </div>
           <div className="text-right">
             <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Record</div>
             <div className="text-lg font-mono text-white">
-              <span className="text-green-400">{wins}W</span>
+              <span className="text-green-400">{displayWins}W</span>
               <span className="text-zinc-600 mx-1">/</span>
-              <span className="text-red-400">{losses}L</span>
+              <span className="text-red-400">{displayLosses}L</span>
             </div>
           </div>
         </div>
@@ -183,20 +197,20 @@ export function PolymarketChart({
 
         <div className="flex items-center gap-8">
           <div className="text-right">
-            <div className="text-xs text-zinc-500">Total P&L</div>
+            <div className="text-xs text-zinc-500">{timePeriod === 'ALL' ? 'Total' : timePeriod} P&L</div>
             <div className={cn(
               'text-2xl font-bold font-mono',
               isPositive ? 'text-green-400' : 'text-red-400'
             )}>
-              {isPositive ? '+' : ''}{formatCurrency(totalPnL)}
+              {isPositive ? '+' : ''}{formatCurrency(displayPnL)}
             </div>
           </div>
           <div className="text-right border-l border-zinc-700 pl-8">
             <div className="text-xs text-zinc-500">Record</div>
             <div className="text-xl font-mono">
-              <span className="text-green-400">{wins}W</span>
+              <span className="text-green-400">{displayWins}W</span>
               <span className="text-zinc-600 mx-2">/</span>
-              <span className="text-red-400">{losses}L</span>
+              <span className="text-red-400">{displayLosses}L</span>
             </div>
           </div>
           {unrealizedPnL !== 0 && (
