@@ -15,6 +15,7 @@ export const SDF_CONTRACTS = {
 }
 
 export const SDF_WALLET = '0xFc1A8921eA05bEC9ceb536f8aEE02AF881D72F6B'
+export const PHANTOM_WALLET = '0xf283043C2AfEEf8839dF559Fe81242EC91C21e0e' // Purchase wallet
 const BASE_RPC = 'https://base.gateway.tenderly.co'
 const COINGECKO_API = 'https://api.coingecko.com/api/v3'
 
@@ -426,8 +427,8 @@ async function getEthPriceAtTime(timestamp: number): Promise<number> {
   }
 }
 
-// Parse and analyze FUN purchases
-export async function fetchFunCostBasis(wallet: string = SDF_WALLET): Promise<FunCostBasis> {
+// Parse and analyze FUN purchases (uses Phantom wallet where buys happen)
+export async function fetchFunCostBasis(wallet: string = PHANTOM_WALLET): Promise<FunCostBasis> {
   const transfers = await fetchFunTransfers(wallet)
   const currentPrice = await fetchFunPrice()
   const ethPrice = await getEthPriceAtTime(Date.now())
