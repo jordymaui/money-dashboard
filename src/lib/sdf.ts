@@ -130,8 +130,8 @@ export interface SDFPortfolio {
 export async function fetchFunPrice(): Promise<number> {
   try {
     const response = await fetch(
-      `${COINGECKO_API}/simple/token_price/base?contract_addresses=${SDF_CONTRACTS.FUN_TOKEN.toLowerCase()}&vs_currencies=usd`,
-      { next: { revalidate: 60 } }
+      `${COINGECKO_API}/simple/token_price/base?contract_addresses=${SDF_CONTRACTS.FUN_TOKEN.toLowerCase()}&vs_currencies=usd&_t=${Date.now()}`,
+      { cache: 'no-store' }
     )
     if (!response.ok) return 0
     const data = await response.json()

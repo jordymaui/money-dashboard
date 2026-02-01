@@ -58,6 +58,7 @@ export async function fetchHyperliquidState(): Promise<HyperliquidState | null> 
     const response = await fetch(HYPERLIQUID_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
       body: JSON.stringify({
         type: 'clearinghouseState',
         user: USER_ADDRESS
@@ -133,6 +134,7 @@ export async function fetchAllMids(): Promise<Record<string, string>> {
     const response = await fetch(HYPERLIQUID_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
       body: JSON.stringify({
         type: 'allMids'
       })

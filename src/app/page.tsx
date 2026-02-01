@@ -182,8 +182,11 @@ export default function Home() {
           <p className="text-zinc-400 text-sm md:text-base hidden md:block">Track all your positions across platforms</p>
         </div>
         
-        {/* Refresh Timer */}
-        <div className="flex items-center gap-2 bg-zinc-800/50 rounded-lg px-2 md:px-3 py-1.5 md:py-2 border border-zinc-700/50">
+        {/* Refresh Button */}
+        <button 
+          onClick={() => { setCountdown(REFRESH_INTERVAL); fetchData(); }}
+          className="flex items-center gap-2 bg-zinc-800/50 hover:bg-zinc-700/50 rounded-lg px-2 md:px-3 py-1.5 md:py-2 border border-zinc-700/50 transition-colors cursor-pointer"
+        >
           <div className="relative w-5 h-5">
             <svg className="w-5 h-5 -rotate-90" viewBox="0 0 20 20">
               <circle
@@ -207,7 +210,8 @@ export default function Home() {
             </svg>
           </div>
           <span className="text-zinc-400 text-xs md:text-sm font-mono">{countdown}s</span>
-        </div>
+          <i className="fa-solid fa-arrows-rotate text-zinc-500 text-xs hidden sm:inline"></i>
+        </button>
       </div>
 
       {/* Total Value Card */}
