@@ -6,6 +6,7 @@ import { PolymarketPosition, PolymarketClosedPosition, PolymarketActivity } from
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { PolymarketChart } from '@/components/polymarket-chart'
+import { fetchPolymarketUSDCBalance } from '@/lib/polymarket'
 
 type TimePeriod = '1D' | '1W' | '1M' | 'ALL'
 type TabType = 'positions' | 'orders' | 'history'
@@ -353,6 +354,7 @@ export default function PolymarketPage() {
   const [positions, setPositions] = useState<PolymarketPosition[]>([])
   const [closedPositions, setClosedPositions] = useState<PolymarketClosedPosition[]>([])
   const [activity, setActivity] = useState<PolymarketActivity[]>([])
+  const [usdcBalance, setUsdcBalance] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('ALL')
   const [activeTab, setActiveTab] = useState<TabType>('positions')
@@ -361,15 +363,17 @@ export default function PolymarketPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [positionsRes, closedRes, activityRes] = await Promise.all([
+      const [positionsRes, closedRes, activityRes, balance] = await Promise.all([
         supabase.from('polymarket_positions').select('*').order('current_value', { ascending: false }),
         supabase.from('polymarket_closed_positions').select('*').order('timestamp', { ascending: false }),
-        supabase.from('polymarket_activity').select('*').order('timestamp', { ascending: false })
+        supabase.from('polymarket_activity').select('*').order('timestamp', { ascending: false }),
+        fetchPolymarketUSDCBalance()
       ])
       
       if (positionsRes.data) setPositions(positionsRes.data)
       if (closedRes.data) setClosedPositions(closedRes.data)
       if (activityRes.data) setActivity(activityRes.data)
+      setUsdcBalance(balance)
       setCountdown(REFRESH_INTERVAL)
     } catch (err) {
       console.error('Error fetching data:', err)
@@ -400,7 +404,10 @@ export default function PolymarketPage() {
 
   // Calculate portfolio stats
   const openPositions = positions.filter(p => !p.redeemable && p.current_value > 0)
-  const totalPortfolioValue = openPositions.reduce((sum, p) => sum + (p.current_value || 0), 0)
+  const positionsValue = openPositions.reduce((sum, p) => sum + (p.current_value || 0), 0)
+  
+  // Total portfolio = USDC balance (cash) + open positions value
+  const totalPortfolioValue = usdcBalance + positionsValue
   
   // P&L Calculation: 
   // - Realized = from closed positions (settled bets)
@@ -525,18 +532,29 @@ export default function PolymarketPage() {
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-zinc-400 text-xs md:text-sm">Portfolio</span>
+              <span className="text-zinc-400 text-xs md:text-sm">Portfolio Value</span>
             </div>
             
-            <div className="text-3xl md:text-5xl font-bold text-white mb-1 tracking-tight">
+            <div className="text-3xl md:text-5xl font-bold text-blue-400 mb-2 tracking-tight">
               {formatCurrency(totalPortfolioValue)}
             </div>
             
-            <div className={cn(
-              'text-xs md:text-sm',
-              todayChange >= 0 ? 'text-green-400' : 'text-red-400'
-            )}>
-              {todayChange >= 0 ? '+' : ''}{formatCurrency(todayChange)} ({formatPercent(todayChangePercent)}) Today
+            {/* Breakdown */}
+            <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm">
+              <span className="text-zinc-400">
+                <i className="fa-solid fa-coins mr-1 text-green-400"></i>
+                Cash: <span className="text-white font-mono">{formatCurrency(usdcBalance)}</span>
+              </span>
+              {positionsValue > 0 && (
+                <span className="text-zinc-400">
+                  <i className="fa-solid fa-chart-pie mr-1 text-blue-400"></i>
+                  Positions: <span className="text-white font-mono">{formatCurrency(positionsValue)}</span>
+                </span>
+              )}
+              <span className={cn('font-mono', realizedPnL >= 0 ? 'text-green-400' : 'text-red-400')}>
+                <i className="fa-solid fa-chart-line mr-1"></i>
+                P&L: {realizedPnL >= 0 ? '+' : ''}{formatCurrency(realizedPnL)}
+              </span>
             </div>
           </div>
           
