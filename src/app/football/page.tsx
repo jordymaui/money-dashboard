@@ -7,9 +7,6 @@ import Link from 'next/link'
 const REFRESH_INTERVAL = 60
 
 function formatCurrency(value: number, decimals = 2): string {
-  if (value >= 1000) {
-    return `$${(value / 1000).toFixed(1)}k`
-  }
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`
 }
 
@@ -159,51 +156,51 @@ export default function FootballPage() {
         </div>
 
         {/* Stats Grid - 2x2 on mobile, 4 on desktop */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
-          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-3 sm:p-4">
-            <div className="text-zinc-500 text-[10px] sm:text-xs mb-0.5">
-              <i className="fa-solid fa-users mr-1"></i>Players
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
+          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-3 sm:p-4 lg:p-5">
+            <div className="text-zinc-500 text-[10px] sm:text-xs lg:text-sm mb-0.5 lg:mb-1">
+              <i className="fa-solid fa-users mr-1"></i>Player Value
             </div>
-            <div className="text-lg sm:text-xl font-bold text-white font-mono">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-white font-mono">
               {formatCurrency(playersValue)}
             </div>
-            <div className="text-[10px] sm:text-xs text-zinc-500">
-              {fdfPlayers.length + nflPlayers.length} total
+            <div className="text-[10px] sm:text-xs lg:text-sm text-zinc-500">
+              {fdfPlayers.length + nflPlayers.length} players
             </div>
           </div>
 
-          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-3 sm:p-4">
-            <div className="text-zinc-500 text-[10px] sm:text-xs mb-0.5">
-              <i className="fa-solid fa-coins mr-1"></i>$FUN
+          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-3 sm:p-4 lg:p-5">
+            <div className="text-zinc-500 text-[10px] sm:text-xs lg:text-sm mb-0.5 lg:mb-1">
+              <i className="fa-solid fa-coins mr-1"></i>$FUN Balance
             </div>
-            <div className="text-lg sm:text-xl font-bold text-white font-mono">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-white font-mono">
               {formatNumber(funBalance)}
             </div>
-            <div className="text-[10px] sm:text-xs text-emerald-400">
+            <div className="text-[10px] sm:text-xs lg:text-sm text-emerald-400">
               ${funPrice.toFixed(4)}
             </div>
           </div>
 
-          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-3 sm:p-4">
-            <div className="text-zinc-500 text-[10px] sm:text-xs mb-0.5">
-              <i className="fa-solid fa-dollar-sign mr-1"></i>USDC
+          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-3 sm:p-4 lg:p-5">
+            <div className="text-zinc-500 text-[10px] sm:text-xs lg:text-sm mb-0.5 lg:mb-1">
+              <i className="fa-solid fa-dollar-sign mr-1"></i>USDC Balance
             </div>
-            <div className="text-lg sm:text-xl font-bold text-white font-mono">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-white font-mono">
               {formatCurrency(usdcBalance)}
             </div>
-            <div className="text-[10px] sm:text-xs text-zinc-500">
+            <div className="text-[10px] sm:text-xs lg:text-sm text-zinc-500">
               In-game
             </div>
           </div>
 
-          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-3 sm:p-4">
-            <div className="text-zinc-500 text-[10px] sm:text-xs mb-0.5">
-              <i className="fa-solid fa-trophy mr-1"></i>Top
+          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-3 sm:p-4 lg:p-5">
+            <div className="text-zinc-500 text-[10px] sm:text-xs lg:text-sm mb-0.5 lg:mb-1">
+              <i className="fa-solid fa-trophy mr-1"></i>Top Holding
             </div>
-            <div className="text-lg sm:text-xl font-bold text-white truncate">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-white truncate">
               {fdfPlayers[0]?.playerName?.split(' ').pop() || '—'}
             </div>
-            <div className="text-[10px] sm:text-xs text-zinc-500">
+            <div className="text-[10px] sm:text-xs lg:text-sm text-emerald-400">
               {fdfPlayers[0] ? formatCurrency(fdfPlayers[0].valueUsd || 0) : '—'}
             </div>
           </div>
