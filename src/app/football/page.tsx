@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { fetchSDFPortfolio, SDFPortfolio, SDF_WALLET, SDF_CONTRACTS } from '@/lib/sdf'
+import { fetchSDFPortfolio, SDFPortfolio, SDF_WALLET, SDF_CONTRACTS, fetchFunCostBasis, FunCostBasis } from '@/lib/sdf'
 import Link from 'next/link'
 
 const REFRESH_INTERVAL = 60
@@ -20,14 +20,20 @@ function shortenAddress(address: string): string {
 
 export default function FootballPage() {
   const [portfolio, setPortfolio] = useState<SDFPortfolio | null>(null)
+  const [costBasis, setCostBasis] = useState<FunCostBasis | null>(null)
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
   const [activeTab, setActiveTab] = useState<'FDF' | 'NFL'>('FDF')
+  const [showPurchases, setShowPurchases] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {
-      const portfolioData = await fetchSDFPortfolio()
+      const [portfolioData, costBasisData] = await Promise.all([
+        fetchSDFPortfolio(),
+        fetchFunCostBasis()
+      ])
       setPortfolio(portfolioData)
+      setCostBasis(costBasisData)
       setCountdown(REFRESH_INTERVAL)
     } catch (error) {
       console.error('Error fetching SDF data:', error)
@@ -205,6 +211,106 @@ export default function FootballPage() {
             </div>
           </div>
         </div>
+
+        {/* $FUN Cost Basis Tracking */}
+        {costBasis && (
+          <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 overflow-hidden mb-4 sm:mb-6">
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-zinc-800/50">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-white text-sm sm:text-base flex items-center gap-2">
+                  <i className="fa-solid fa-chart-line text-emerald-400"></i>
+                  $FUN Cost Basis
+                </h3>
+                <button
+                  onClick={() => setShowPurchases(!showPurchases)}
+                  className="text-xs text-zinc-400 hover:text-white transition-colors"
+                >
+                  {showPurchases ? 'Hide' : 'Show'} History
+                  <i className={`fa-solid fa-chevron-${showPurchases ? 'up' : 'down'} ml-1`}></i>
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                <div>
+                  <div className="text-zinc-500 text-[10px] sm:text-xs mb-0.5">Avg Entry</div>
+                  <div className="text-base sm:text-lg font-bold text-white font-mono">
+                    ${costBasis.averageEntryPrice.toFixed(4)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-zinc-500 text-[10px] sm:text-xs mb-0.5">Current Price</div>
+                  <div className="text-base sm:text-lg font-bold text-white font-mono">
+                    ${costBasis.currentPrice.toFixed(4)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-zinc-500 text-[10px] sm:text-xs mb-0.5">Total Invested</div>
+                  <div className="text-base sm:text-lg font-bold text-white font-mono">
+                    {formatCurrency(costBasis.totalCostUsd)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-zinc-500 text-[10px] sm:text-xs mb-0.5">Unrealized P&L</div>
+                  <div className={`text-base sm:text-lg font-bold font-mono ${costBasis.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {costBasis.unrealizedPnl >= 0 ? '+' : ''}{formatCurrency(costBasis.unrealizedPnl)}
+                    <span className="text-xs ml-1">
+                      ({costBasis.unrealizedPnlPercent >= 0 ? '+' : ''}{costBasis.unrealizedPnlPercent.toFixed(1)}%)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Purchase History (collapsible) */}
+            {showPurchases && costBasis.purchases.length > 0 && (
+              <div className="p-3 sm:p-4 max-h-64 overflow-y-auto">
+                <table className="w-full text-xs sm:text-sm">
+                  <thead>
+                    <tr className="text-zinc-500 text-left">
+                      <th className="pb-2">Date</th>
+                      <th className="pb-2 text-right">Amount</th>
+                      <th className="pb-2 text-right">Price</th>
+                      <th className="pb-2 text-right">Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {costBasis.purchases.map((purchase, idx) => (
+                      <tr key={purchase.txHash} className="border-t border-zinc-800/30">
+                        <td className="py-2">
+                          <a 
+                            href={`https://basescan.org/tx/${purchase.txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-zinc-300 hover:text-emerald-400"
+                          >
+                            {purchase.date}
+                            <i className="fa-solid fa-external-link ml-1 text-[10px] text-zinc-600"></i>
+                          </a>
+                        </td>
+                        <td className="py-2 text-right text-white font-mono">
+                          {formatNumber(purchase.funAmount, 0)}
+                        </td>
+                        <td className="py-2 text-right text-zinc-400 font-mono">
+                          ${purchase.pricePerFun.toFixed(4)}
+                        </td>
+                        <td className="py-2 text-right text-emerald-400 font-mono">
+                          {formatCurrency(purchase.costUsd)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            
+            {showPurchases && costBasis.purchases.length === 0 && (
+              <div className="p-6 text-center text-zinc-500 text-sm">
+                <i className="fa-solid fa-inbox text-xl mb-2 opacity-30 block"></i>
+                No swap purchases detected yet
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Player Holdings - Tab Toggle */}
         <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 overflow-hidden mb-4 sm:mb-6">
