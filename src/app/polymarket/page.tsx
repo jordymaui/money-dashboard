@@ -17,6 +17,10 @@ import {
   getWalletAddress
 } from '@/lib/polymarket'
 import { PolymarketAnalytics } from '@/components/polymarket-analytics'
+import { StrategyModal } from '@/components/strategy-modal'
+import { WinRateModal } from '@/components/winrate-modal'
+import { PositionsModal } from '@/components/positions-modal'
+import { LearningsModal } from '@/components/learnings-modal'
 
 type TimePeriod = '1D' | '1W' | '1M' | 'ALL'
 type TabType = 'positions' | 'history'
@@ -381,6 +385,12 @@ export default function PolymarketPage() {
   
   // Wallet switcher - default to mauibot
   const [selectedWallet, setSelectedWallet] = useState<WalletKey>('mauibot')
+  
+  // Modal states
+  const [showStrategy, setShowStrategy] = useState(false)
+  const [showWinRate, setShowWinRate] = useState(false)
+  const [showPositions, setShowPositions] = useState(false)
+  const [showLearnings, setShowLearnings] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {
@@ -567,6 +577,57 @@ export default function PolymarketPage() {
         <div className="mt-2 text-xs text-zinc-500 font-mono truncate">
           {getWalletAddress(selectedWallet)}
         </div>
+      </div>
+
+      {/* Quick Stats Icon Bar */}
+      <div className="grid grid-cols-4 gap-3 mb-4">
+        <button
+          onClick={() => setShowStrategy(true)}
+          className="bg-zinc-900/50 hover:bg-zinc-800/70 rounded-xl border border-zinc-800/50 p-4 transition-colors group"
+        >
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <i className="fa-solid fa-chess text-blue-400"></i>
+            </div>
+            <span className="text-xs text-zinc-400 group-hover:text-white">Strategy</span>
+          </div>
+        </button>
+        
+        <button
+          onClick={() => setShowWinRate(true)}
+          className="bg-zinc-900/50 hover:bg-zinc-800/70 rounded-xl border border-zinc-800/50 p-4 transition-colors group"
+        >
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <i className="fa-solid fa-chart-pie text-green-400"></i>
+            </div>
+            <span className="text-xs text-zinc-400 group-hover:text-white">Win Rate</span>
+          </div>
+        </button>
+        
+        <button
+          onClick={() => setShowPositions(true)}
+          className="bg-zinc-900/50 hover:bg-zinc-800/70 rounded-xl border border-zinc-800/50 p-4 transition-colors group"
+        >
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <i className="fa-solid fa-crosshairs text-orange-400"></i>
+            </div>
+            <span className="text-xs text-zinc-400 group-hover:text-white">Bets</span>
+          </div>
+        </button>
+        
+        <button
+          onClick={() => setShowLearnings(true)}
+          className="bg-zinc-900/50 hover:bg-zinc-800/70 rounded-xl border border-zinc-800/50 p-4 transition-colors group"
+        >
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <i className="fa-solid fa-brain text-purple-400"></i>
+            </div>
+            <span className="text-xs text-zinc-400 group-hover:text-white">Learnings</span>
+          </div>
+        </button>
       </div>
 
       {/* Portfolio Summary Section */}
@@ -820,6 +881,28 @@ Live data from Polymarket API
           </div>
         </div>
       )}
+
+      {/* Modals */}
+      <StrategyModal isOpen={showStrategy} onClose={() => setShowStrategy(false)} />
+      <WinRateModal 
+        isOpen={showWinRate} 
+        onClose={() => setShowWinRate(false)} 
+        stats={performanceStats}
+        wins={pnlStats.wins}
+        losses={pnlStats.losses}
+      />
+      <PositionsModal 
+        isOpen={showPositions} 
+        onClose={() => setShowPositions(false)} 
+        positions={positions}
+      />
+      <LearningsModal 
+        isOpen={showLearnings} 
+        onClose={() => setShowLearnings(false)}
+        totalPnL={pnlStats.totalPnL}
+        winRate={pnlStats.wins + pnlStats.losses > 0 ? (pnlStats.wins / (pnlStats.wins + pnlStats.losses)) * 100 : 0}
+        totalTrades={pnlStats.wins + pnlStats.losses}
+      />
     </div>
   )
 }
