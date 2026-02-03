@@ -11,7 +11,10 @@ import {
   PolymarketActivity,
   PnLTimelinePoint,
   CategoryStats,
-  PerformanceStats
+  PerformanceStats,
+  POLYMARKET_WALLETS,
+  WalletKey,
+  getWalletAddress
 } from '@/lib/polymarket'
 import { PolymarketAnalytics } from '@/components/polymarket-analytics'
 
@@ -375,10 +378,13 @@ export default function PolymarketPage() {
   const [activeTab, setActiveTab] = useState<TabType>('positions')
   const [historyView, setHistoryView] = useState<'all' | 'activity' | 'closed'>('all')
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
+  
+  // Wallet switcher - default to mauibot
+  const [selectedWallet, setSelectedWallet] = useState<WalletKey>('mauibot')
 
   const fetchData = useCallback(async () => {
     try {
-      const data = await fetchAllPolymarketData()
+      const data = await fetchAllPolymarketData(selectedWallet)
       
       setPositions(data.positions)
       setClosedPositions(data.closedPositions)
@@ -396,12 +402,13 @@ export default function PolymarketPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [selectedWallet])
 
-  // Initial fetch
+  // Fetch when wallet changes or on initial load
   useEffect(() => {
+    setLoading(true)
     fetchData()
-  }, [fetchData])
+  }, [fetchData, selectedWallet])
 
   // Countdown timer with auto-refresh
   useEffect(() => {
@@ -528,12 +535,49 @@ export default function PolymarketPage() {
         </div>
       </div>
 
+      {/* Wallet Switcher */}
+      <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-3 mb-4">
+        <div className="flex items-center justify-between">
+          <span className="text-zinc-400 text-sm">Wallet:</span>
+          <div className="flex gap-2">
+            {(Object.keys(POLYMARKET_WALLETS) as WalletKey[]).map((key) => {
+              const wallet = POLYMARKET_WALLETS[key]
+              const isSelected = selectedWallet === key
+              return (
+                <button
+                  key={key}
+                  onClick={() => setSelectedWallet(key)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                    isSelected
+                      ? key === 'mauibot' 
+                        ? 'bg-orange-500/20 text-orange-400 border border-orange-500/50'
+                        : 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
+                      : 'bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-700'
+                  )}
+                >
+                  {key === 'mauibot' && <i className="fa-solid fa-robot mr-2"></i>}
+                  {key === 'jordy' && <i className="fa-solid fa-user mr-2"></i>}
+                  {wallet.name}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div className="mt-2 text-xs text-zinc-500 font-mono truncate">
+          {getWalletAddress(selectedWallet)}
+        </div>
+      </div>
+
       {/* Portfolio Summary Section */}
       <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/50 p-4 md:p-6 mb-4 md:mb-6">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-zinc-400 text-xs md:text-sm">Portfolio Value</span>
+              <span className="text-zinc-400 text-xs md:text-sm">
+                {selectedWallet === 'mauibot' && <i className="fa-solid fa-robot mr-1 text-orange-400"></i>}
+                {POLYMARKET_WALLETS[selectedWallet].name}'s Portfolio
+              </span>
             </div>
             
             <div className="text-3xl md:text-5xl font-bold text-blue-400 mb-2 tracking-tight">

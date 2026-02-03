@@ -3,7 +3,40 @@
 const POLYGON_RPC = 'https://polygon-rpc.com'
 const USDC_E_CONTRACT = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174'
 const DATA_API = 'https://data-api.polymarket.com'
-const POLYMARKET_WALLET = '0xDa50B2Ca697Ee1A325d3c6f965B69Eb9EC632A41'
+
+// Wallet configurations
+export const POLYMARKET_WALLETS = {
+  jordy: {
+    address: '0xDa50B2Ca697Ee1A325d3c6f965B69Eb9EC632A41',
+    name: 'Jordy',
+    description: 'Personal account'
+  },
+  mauibot: {
+    address: '0x3D67102FB34C01C5615603a7ce9FE8C5E1A9e6b3',
+    name: 'Mauibot',
+    description: 'AI trading bot'
+  }
+} as const
+
+export type WalletKey = keyof typeof POLYMARKET_WALLETS
+
+// Default wallet (can be overridden)
+let currentWallet: WalletKey = 'mauibot'
+
+export function setCurrentWallet(wallet: WalletKey) {
+  currentWallet = wallet
+}
+
+export function getCurrentWallet(): WalletKey {
+  return currentWallet
+}
+
+export function getWalletAddress(wallet?: WalletKey): string {
+  return POLYMARKET_WALLETS[wallet || currentWallet].address
+}
+
+// Legacy constant for backward compatibility
+const POLYMARKET_WALLET = POLYMARKET_WALLETS.jordy.address
 
 // API returns camelCase, we transform to snake_case for consistency with existing code
 export interface PolymarketPosition {
@@ -80,9 +113,10 @@ export interface PnLTimelinePoint {
 /**
  * Fetch USDC.e balance from Polygon
  */
-export async function fetchPolymarketUSDCBalance(): Promise<number> {
+export async function fetchPolymarketUSDCBalance(wallet?: WalletKey): Promise<number> {
   try {
-    const paddedAddress = POLYMARKET_WALLET.replace('0x', '').padStart(64, '0')
+    const walletAddress = getWalletAddress(wallet)
+    const paddedAddress = walletAddress.replace('0x', '').padStart(64, '0')
     const data = `0x70a08231${paddedAddress}`
 
     const response = await fetch(POLYGON_RPC, {
@@ -178,9 +212,10 @@ function transformActivity(a: any): PolymarketActivity {
 /**
  * Fetch positions from Data API
  */
-export async function fetchPositions(): Promise<PolymarketPosition[]> {
+export async function fetchPositions(wallet?: WalletKey): Promise<PolymarketPosition[]> {
   try {
-    const response = await fetch(`${DATA_API}/positions?user=${POLYMARKET_WALLET}&limit=500`)
+    const walletAddress = getWalletAddress(wallet)
+    const response = await fetch(`${DATA_API}/positions?user=${walletAddress}&limit=500`)
     if (!response.ok) return []
     const data = await response.json()
     return data.map(transformPosition)
@@ -193,9 +228,10 @@ export async function fetchPositions(): Promise<PolymarketPosition[]> {
 /**
  * Fetch closed positions from Data API
  */
-export async function fetchClosedPositions(): Promise<PolymarketClosedPosition[]> {
+export async function fetchClosedPositions(wallet?: WalletKey): Promise<PolymarketClosedPosition[]> {
   try {
-    const response = await fetch(`${DATA_API}/closed-positions?user=${POLYMARKET_WALLET}&limit=500`)
+    const walletAddress = getWalletAddress(wallet)
+    const response = await fetch(`${DATA_API}/closed-positions?user=${walletAddress}&limit=500`)
     if (!response.ok) return []
     const data = await response.json()
     return data.map(transformClosedPosition)
@@ -208,9 +244,10 @@ export async function fetchClosedPositions(): Promise<PolymarketClosedPosition[]
 /**
  * Fetch activity from Data API
  */
-export async function fetchActivity(): Promise<PolymarketActivity[]> {
+export async function fetchActivity(wallet?: WalletKey): Promise<PolymarketActivity[]> {
   try {
-    const response = await fetch(`${DATA_API}/activity?user=${POLYMARKET_WALLET}&limit=500`)
+    const walletAddress = getWalletAddress(wallet)
+    const response = await fetch(`${DATA_API}/activity?user=${walletAddress}&limit=500`)
     if (!response.ok) return []
     const data = await response.json()
     return data.map(transformActivity)
@@ -580,12 +617,12 @@ export function calculatePerformanceStats(
   }
 }
 
-export async function fetchAllPolymarketData() {
+export async function fetchAllPolymarketData(wallet?: WalletKey) {
   const [usdcBalance, positions, closedPositions, activity] = await Promise.all([
-    fetchPolymarketUSDCBalance(),
-    fetchPositions(),
-    fetchClosedPositions(),
-    fetchActivity()
+    fetchPolymarketUSDCBalance(wallet),
+    fetchPositions(wallet),
+    fetchClosedPositions(wallet),
+    fetchActivity(wallet)
   ])
   
   const pnlStats = calculatePnL(positions, closedPositions)
