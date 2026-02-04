@@ -13,8 +13,8 @@ export const POLYMARKET_WALLETS = {
   },
   mauibot: {
     address: '0x3D67102FB34C01C5615603a7ce9FE8C5E1A9e6b3',
-    name: 'Mauibot',
-    description: 'AI trading bot'
+    name: 'Mauibot 🌺',
+    description: 'AI Trading Bot'
   }
 } as const
 
