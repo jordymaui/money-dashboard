@@ -25,7 +25,7 @@ import { LearningsModal } from '@/components/learnings-modal'
 type TimePeriod = '1D' | '1W' | '1M' | 'ALL'
 type TabType = 'positions' | 'history'
 
-const REFRESH_INTERVAL = 15 // seconds
+const REFRESH_INTERVAL = 60 // seconds
 
 function formatCurrency(value: number, decimals = 2): string {
   return `$${Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`
